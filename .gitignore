@@ -1,0 +1,46 @@
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*tfplan*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variables: non-secret *.auto.tfvars ARE committed; plain terraform.tfvars is not
+*.tfvars
+*.tfvars.json
+!*.auto.tfvars
+
+# NOT ignored on purpose: .terraform.lock.hcl (pins provider versions — commit it)
+
+# Secrets / credentials
+*.pem
+*.key
+id_rsa*
+!*.pub
+.env
+.env.*
+**/.vault_pass*
+**/vault-password*
+
+# Python / Ansible
+.venv/
+__pycache__/
+*.pyc
+.ansible/
+.cache/
+molecule/**/.molecule/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
