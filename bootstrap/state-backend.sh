@@ -65,3 +65,60 @@ fi
 # ---- evidence: what Azure actually holds ----
 az storage account show --name "$SA_NAME" --resource-group "$RG_NAME" \
   --query "[name, sku.name, allowSharedKeyAccess, minimumTlsVersion, allowBlobPublicAccess, enableHttpsTrafficOnly]" -o tsv
+
+
+
+# ---- blob protection: recover from bad writes and deletes (GZRS only covers infrastructure loss) ----
+RETENTION_DAYS=30                          # how long deleted blobs/containers stay recoverable; ADR-0005 decision
+echo "== blob protection: versioning + soft delete ($RETENTION_DAYS days) =="   # progress marker
+az storage account blob-service-properties update \
+  --account-name "$SA_NAME" --resource-group "$RG_NAME" \
+  --enable-versioning true \
+  --enable-delete-retention true --delete-retention-days "$RETENTION_DAYS" \
+  --enable-container-delete-retention true --container-delete-retention-days "$RETENTION_DAYS" \
+  --output none                            # ARM PUT on blobServices/default: control plane, idempotent, no show/create branch needed
+az storage account blob-service-properties show \
+  --account-name "$SA_NAME" --resource-group "$RG_NAME" \
+  --query "[isVersioningEnabled, deleteRetentionPolicy.enabled, deleteRetentionPolicy.days, containerDeleteRetentionPolicy.enabled, containerDeleteRetentionPolicy.days]" \
+  -o tsv                                   # evidence from Azure: expect true, true, 30, true, 30
+
+
+
+# ---- container: created through ARM (control plane) so it works before any data-role grant ----
+CONTAINER_NAME="tfstate"                   # fixed by engineering_standards.md §3; every backend.tf points here
+echo "== container: $CONTAINER_NAME =="    # progress marker
+exists=$(az storage container-rm exists \
+  --storage-account "$SA_NAME" --resource-group "$RG_NAME" --name "$CONTAINER_NAME" \
+  --query exists -o tsv)                   # ARM read: prints true or false
+if [ "$exists" = "true" ]; then            # string compare; anything but "true" (incl. an empty result) falls to create
+  echo "exists"
+else
+  az storage container-rm create \
+    --storage-account "$SA_NAME" --resource-group "$RG_NAME" --name "$CONTAINER_NAME" \
+    --public-access off \
+    --output none                          # ARM PUT on blobServices/default/containers/tfstate: checked against actions (Owner has *)
+  echo "created"
+fi
+az storage container-rm show \
+  --storage-account "$SA_NAME" --resource-group "$RG_NAME" --name "$CONTAINER_NAME" \
+  --query "[name, publicAccess]" -o tsv    # evidence: the container name, and public access None
+
+
+
+
+# ---- data-plane access for the operator running this script (CI identities are granted in Week 3) ----
+ROLE="Storage Blob Data Contributor"       # exact role name: the data role with blob read/write/delete dataActions
+echo "== data role: $ROLE for the signed-in user =="   # progress marker
+sa_id=$(az storage account show --name "$SA_NAME" --resource-group "$RG_NAME" --query id -o tsv)   # full ARM resource ID of the account = the scope
+me=$(az ad signed-in-user show --query id -o tsv)   # Entra object ID of the human running bootstrap
+count=$(az role assignment list --assignee "$me" --role "$ROLE" --scope "$sa_id" --query "length(@)" -o tsv)   # 0 = not yet granted at this exact scope
+if [ "$count" = "0" ]; then
+  az role assignment create \
+    --assignee-object-id "$me" --assignee-principal-type User \
+    --role "$ROLE" --scope "$sa_id" \
+    --output none                          # control-plane write: needs Microsoft.Authorization/roleAssignments/write, which Owner has
+  echo "granted (RBAC can take a few minutes to reach the storage service)"
+else
+  echo "already granted"
+fi
+az role assignment list --assignee "$me" --scope "$sa_id" --query "[].roleDefinitionName" -o tsv   # evidence: roles held at exactly this scope
