@@ -40,6 +40,8 @@ Option 3.
   ruleset was created immediately after it.
 - **CODEOWNERS** names individual users (a personal account has no teams); the intended team
   per path is documented as comments. Code-owner review is not required.
+- Squash commits use the **PR title** as subject and the **PR description** as body, so the change record (what / why / plan / risk / rollback) is kept in `git log` on `main`.
+- Private vulnerability reporting is enabled (see `SECURITY.md`).
 - These settings are codified in `bootstrap/github-repo-settings.sh` so they can be rebuilt.
 
 ## Consequences
