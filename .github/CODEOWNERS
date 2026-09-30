@@ -1,0 +1,10 @@
+# Code ownership map. GitHub evaluates patterns top to bottom; the LAST match wins.
+# Personal account: owners must be individual users (teams exist only in organisations).
+# Team equivalent is noted per line; with required code-owner review this becomes
+# segregation of duties (see ADR-0001).
+
+*                         @teegalaajay   # team: @<org>/platform-team
+/bootstrap/               @teegalaajay   # team: @<org>/platform-security (identity, state backend)
+/.github/                 @teegalaajay   # team: @<org>/platform-security (CI can deploy to Azure)
+/platform/                @teegalaajay   # team: @<org>/platform-team (persistent layer)
+/docs/adr/                @teegalaajay   # team: @<org>/architecture
