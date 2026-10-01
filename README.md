@@ -84,13 +84,16 @@ This is the target design; section 7 shows what is built today.
 | [0002](docs/adr/0002-secrets-and-identity.md) | Secrets and identity |
 | [0003](docs/adr/0003-repository-governance.md) | Repository visibility and change control on `main` |
 | [0004](docs/adr/0004-subscription-and-environment-layout.md) | Subscription and environment layout |
+| [0005](docs/adr/0005-remote-state-backend.md) | Remote state backend |
+| [0006](docs/adr/0006-storage-module-and-environment-roots.md) | Storage module and per-environment root modules |
 
 ## 7. Status
 
 | Component | Status |
 |---|---|
 | Repository governance, quality gates, ADRs | ✅ in place |
-| Terraform state backend | ⬜ planned |
+| Terraform state backend | ✅ in place |
+| Storage module (hardened baseline) with dev/prod roots | ✅ in place |
 | Foundation network and Key Vault | ⬜ planned |
 | CI/CD: GitHub Actions with OIDC | ⬜ planned |
 | Configuration management (Ansible) and Azure DevOps pipelines | ⬜ planned |

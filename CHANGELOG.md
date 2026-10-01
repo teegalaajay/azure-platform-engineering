@@ -18,3 +18,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   shared key disabled, blob versioning and soft delete, `tfstate` container, operator data role),
   ADR-0005 and the state-backend runbook.
 - Editor settings that match the whitespace pre-commit hooks.
+- `modules/storage`: storage account with a fixed security baseline (shared key disabled, TLS 1.2,
+  HTTPS only, no public blob access, versioning and 30-day soft delete) and validated inputs.
+- Workload roots `workloads/storage-demo/{dev,prod}` with separate state keys; prod uses GRS and a
+  `CanNotDelete` lock protected by `prevent_destroy`. ADR-0006.
