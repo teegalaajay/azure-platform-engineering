@@ -19,6 +19,7 @@ terraform.rc
 !*.auto.tfvars
 
 # NOT ignored on purpose: .terraform.lock.hcl (pins provider versions — commit it)
+modules/**/.terraform.lock.hcl
 
 # Secrets / credentials
 *.pem
