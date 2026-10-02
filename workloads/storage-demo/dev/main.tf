@@ -1,5 +1,4 @@
 locals {
-  # Org-wide mandatory tags (engineering_standards §8). Identical in every environment.
   common_tags = {
     owner       = "platform-team"
     cost_center = "cc-platform-001"
@@ -9,23 +8,23 @@ locals {
 
   # Environment-specific tags go last so they win on any duplicate key.
   tags = merge(local.common_tags, {
-    environment         = "dev"
-    data_classification = "internal" # dev holds no regulated data
+    environment         = var.environment
+    data_classification = var.data_classification
   })
 }
 
 resource "azurerm_resource_group" "this" {
-  name     = "rg-storage-demo-dev"
-  location = "eastus2"
+  name     = "rg-storage-demo-${var.environment}"
+  location = var.location
   tags     = local.tags
 }
 
 module "storage" {
   source = "../../../modules/storage"
 
-  name                = "stdemodevat01"
+  name                = var.storage_account_name
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
-  replication_type    = "LRS"
+  replication_type    = var.replication_type
   tags                = local.tags
 }
