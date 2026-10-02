@@ -27,3 +27,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   HTTPS only, no public blob access, versioning and 30-day soft delete) and validated inputs.
 - Workload roots `workloads/storage-demo/{dev,prod}` with separate state keys; prod uses GRS and a
   `CanNotDelete` lock protected by `prevent_destroy`. ADR-0006.
+
+### Fixed
+- `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
+  tags (it previously checked key presence only, so `owner = null` or `""` passed).
