@@ -1,14 +1,24 @@
+
+locals {
+  # Org-wide mandatory tags (engineering_standards §8). Identical in every environment.
+  common_tags = {
+    owner       = "platform-team"
+    cost_center = "cc-platform-001"
+    managed_by  = "terraform"
+    repo        = "azure-platform-engineering"
+  }
+
+  # Environment-specific tags go last so they win on any duplicate key.
+  tags = merge(local.common_tags, {
+    environment         = "prod"
+    data_classification = "gxp-regulated"
+  })
+}
+
 resource "azurerm_resource_group" "this" {
   name     = "rg-storage-demo-prod"
   location = "eastus2"
-  tags = {
-    owner               = "platform-team"
-    environment         = "prod"
-    cost_center         = "cc-platform-001"
-    data_classification = "gxp-regulated"
-    managed_by          = "terraform"
-    repo                = "azure-platform-engineering"
-  }
+  tags     = local.tags
 }
 
 module "storage" {
@@ -18,7 +28,7 @@ module "storage" {
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
   replication_type    = "GRS"
-  tags                = azurerm_resource_group.this.tags
+  tags                = local.tags
 }
 
 resource "azurerm_management_lock" "storage" {
