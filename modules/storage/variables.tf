@@ -36,8 +36,10 @@ variable "tags" {
   validation {
     condition = alltrue([
       for k in ["owner", "environment", "cost_center", "data_classification", "managed_by", "repo"] :
-      contains(keys(var.tags), k) # is this mandatory key present in the caller's map?
+      # Present AND non-null AND non-blank. A missing key (invalid index) or a null
+      # (trimspace(null) errors) both raise an error, which try() turns into false.
+      try(trimspace(var.tags[k]) != "", false)
     ])
-    error_message = "tags must include owner, environment, cost_center, data_classification, managed_by and repo."
+    error_message = "tags must include non-empty values for owner, environment, cost_center, data_classification, managed_by and repo."
   }
 }
