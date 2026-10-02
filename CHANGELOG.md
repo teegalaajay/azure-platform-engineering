@@ -13,6 +13,11 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   frozen to commit SHAs; tflint with the pinned azurerm ruleset.
 - Architecture Decision Records 0001–0004.
 - README with scenario, target architecture and status; security policy.
+### Changed
+- `workloads/storage-demo/{dev,prod}`: mandatory tags built once with `locals` + `merge()`;
+  per-environment values moved to `variables.tf` + committed `*.auto.tfvars` (no defaults, so a
+  missing value fails `plan -input=false`); root `outputs.tf` exposes identifiers only.
+  Completes the root file set (engineering_standards §2). No resource changes.
 - `bootstrap/github-repo-settings.sh` and the workstation-setup runbook.
 - Remote state backend: `bootstrap/state-backend.sh` (resource group, GZRS storage account with
   shared key disabled, blob versioning and soft delete, `tfstate` container, operator data role),

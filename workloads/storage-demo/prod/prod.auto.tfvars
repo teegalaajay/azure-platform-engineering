@@ -1,0 +1,5 @@
+environment          = "prod"
+location             = "eastus2"
+data_classification  = "gxp-regulated"
+storage_account_name = "stdemoprodat01"
+replication_type     = "GRS"
