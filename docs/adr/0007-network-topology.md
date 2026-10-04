@@ -121,4 +121,10 @@ relied on.
   `default_outbound_access_enabled = true` lets VMs without a public IP use Azure's implicit
   outbound IP, which Microsoft is retiring in favour of explicit egress. Decide NAT Gateway vs
   the Week 8 firewall before the Week 3 runner exists, then set the value explicitly.
+- **Operator rules hide every rule in the plan (tested 2026-10-04).** `security_rule` is a set;
+  one element carrying the sensitive `operator_ip_cidr` makes Terraform render the whole set as
+  `(sensitive value)`. NSGs without operator rules render in full. Accepted: rule content is
+  reviewed in the code diff (names, priorities, ports, `var.operator_ip_cidr`), and the applied
+  rules are verified with `az network nsg rule list` (output not posted publicly). Exit: replace
+  internet-facing operator rules with Azure Bastion in the hub (Week 8) and remove the variable.
 - Cost: VNets, subnets, NSGs and peerings have no hourly charge; peering is billed per GB.
