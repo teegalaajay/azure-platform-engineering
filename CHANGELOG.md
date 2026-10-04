@@ -28,7 +28,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Persistent root `platform/foundation/hub`: `vnet-hub-shared` (`10.20.0.0/16`) with `snet-mgmt`
   (Storage and Key Vault service endpoints, no inbound allow rules). ADR-0007 and the
   network-foundation runbook.
-
+- Persistent roots `platform/foundation/{dev,prod}`: `vnet-spoke-dev` (`10.10.0.0/16`) and
+  `vnet-spoke-prod` (`10.11.0.0/16`) with `snet-app` and `snet-data`, NSG rules per ADR-0007, and
+  hub peering in both directions. The hub VNet and `snet-mgmt` prefix are read with data sources;
+  the operator IP is a sensitive `TF_VAR_operator_ip_cidr` input, never committed.
 ### Changed
 - `workloads/storage-demo/{dev,prod}`: mandatory tags built once with `locals` + `merge()`;
   per-environment values moved to `variables.tf` + committed `*.auto.tfvars` (no defaults, so a
