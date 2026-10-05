@@ -32,6 +32,11 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   `vnet-spoke-prod` (`10.11.0.0/16`) with `snet-app` and `snet-data`, NSG rules per ADR-0007, and
   hub peering in both directions. The hub VNet and `snet-mgmt` prefix are read with data sources;
   the operator IP is a sensitive `TF_VAR_operator_ip_cidr` input, never committed.
+- `modules/linux-vm`: private Linux VM and NIC with a fixed baseline (no public IP, SSH key only,
+  trusted launch, Gen2 Ubuntu 24.04), required `size` and `zone`, optional static private IP,
+  validated tags.
+- Workload root `workloads/vm-demo/dev`: reads the dev spoke from the foundation state, deploys the
+  VM with a static IP in `snet-app` and an interim NAT Gateway for explicit egress. ADR-0008.
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no
   implicit outbound IP). In-place update on all five foundation subnets, no replacement.
