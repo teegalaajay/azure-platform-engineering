@@ -33,6 +33,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   hub peering in both directions. The hub VNet and `snet-mgmt` prefix are read with data sources;
   the operator IP is a sensitive `TF_VAR_operator_ip_cidr` input, never committed.
 ### Changed
+- `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no
+  implicit outbound IP). In-place update on all five foundation subnets, no replacement.
+  ADR-0007 records the egress decision.
 - `workloads/storage-demo/{dev,prod}`: mandatory tags built once with `locals` + `merge()`;
   per-environment values moved to `variables.tf` + committed `*.auto.tfvars` (no defaults, so a
   missing value fails `plan -input=false`); root `outputs.tf` exposes identifiers only.

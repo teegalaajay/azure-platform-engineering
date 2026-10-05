@@ -117,10 +117,17 @@ relied on.
 - **Delivery order:** the spoke roots read the hub VNet with a data source during plan, so the
   hub must exist first. PR A delivers `modules/network`, the hub root and this ADR and is applied
   from `main`; PR B adds the dev and prod spoke roots with peering.
-- **Open: explicit egress for `snet-mgmt`.** The provider default
-  `default_outbound_access_enabled = true` lets VMs without a public IP use Azure's implicit
-  outbound IP, which Microsoft is retiring in favour of explicit egress. Decide NAT Gateway vs
-  the Week 8 firewall before the Week 3 runner exists, then set the value explicitly.
+- **Explicit egress (decided 2026-10-05).** Every subnet sets
+  `default_outbound_access_enabled = false` in `modules/network`: no implicit Azure-owned
+  outbound IP, and nothing reaches the internet without an explicit path. Spoke VMs get no public
+  IP. Egress is a NAT Gateway created by the workload root that needs it (interim and ephemeral,
+  roughly USD 1/day while it exists), to be replaced by the Week 8 firewall with a UDR. The
+  `snet-mgmt` runner (Week 3 Day 6) gets its egress path in its own PR. Rejected: a public IP on
+  the NIC (an admin shortcut, not an enterprise pattern), a standing NAT Gateway in the
+  foundation (about USD 33/month against a USD 50 budget), keeping the default (implicit,
+  unauditable, being retired). Consequence: a VM in these subnets has no internet until its root
+  adds NAT. The `azurerm_subnet_nat_gateway_association` lives in the workload root beside the NAT
+  Gateway (a separate resource, so the foundation plan is unaffected) and is destroyed with it.
 - **Operator rules hide every rule in the plan (tested 2026-10-04).** `security_rule` is a set;
   one element carrying the sensitive `operator_ip_cidr` makes Terraform render the whole set as
   `(sensitive value)`. NSGs without operator rules render in full. Accepted: rule content is
