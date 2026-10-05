@@ -12,11 +12,12 @@ resource "azurerm_virtual_network" "this" {
 resource "azurerm_subnet" "this" {
   for_each = var.subnets # key = app/data/mgmt -> address azurerm_subnet.this["app"]
 
-  name                 = "snet-${each.key}"
-  resource_group_name  = var.resource_group_name
-  virtual_network_name = azurerm_virtual_network.this.name # reference = implicit dependency: VNet first
-  address_prefixes     = [each.value.address_prefix]
-  service_endpoints    = each.value.service_endpoints # [] when the caller omits it (optional default)
+  name                            = "snet-${each.key}"
+  resource_group_name             = var.resource_group_name
+  virtual_network_name            = azurerm_virtual_network.this.name # reference = implicit dependency: VNet first
+  address_prefixes                = [each.value.address_prefix]
+  service_endpoints               = each.value.service_endpoints # [] when the caller omits it (optional default)
+  default_outbound_access_enabled = false                        # private subnet: egress must be explicit (NAT or firewall), ADR-0007
 }
 
 locals {
