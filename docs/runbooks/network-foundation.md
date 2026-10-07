@@ -20,7 +20,8 @@ Apply order: **hub, then dev, then prod.** Spoke roots look the hub VNet up duri
 Prerequisites: `az login --tenant <TENANT_ID>`, `ARM_SUBSCRIPTION_ID` exported (workstation-setup
 runbook). Spoke roots also need `TF_VAR_operator_ip_cidr` (your public IP as `/32`), set once with
 a guarded append to `~/.bashrc`. When your ISP changes your IP, edit that line by hand, then plan
-and apply both spoke roots (expect `~ update in-place` on `nsg-app-spoke-*` only).
+and apply both spoke roots (expect `~ update in-place` on `nsg-app-spoke-*` only) and both
+`workloads/storage-demo` roots (storage firewall, see the storage-demo runbook).
 
 ```bash
 git switch main && git pull
