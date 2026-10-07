@@ -45,6 +45,7 @@ resource "azurerm_management_lock" "storage" {
   }
 }
 
+# Allowed paths are read from their owners, never typed (ADR-0009). Data-plane reads: need a blob data role.
 data "terraform_remote_state" "foundation" {
   backend = "azurerm"
 
