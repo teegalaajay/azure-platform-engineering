@@ -32,3 +32,14 @@ variable "replication_type" {
   description = "Storage redundancy; an explicit per-environment decision (ADR-0006)"
   type        = string
 }
+
+variable "operator_ip_cidr" {
+  description = "Operator public IP as /32. Set via TF_VAR_operator_ip_cidr; never committed (public repo)."
+  type        = string
+  sensitive   = true # redacted in plan/apply output; still stored in state (ADR-0002)
+
+  validation {
+    condition     = can(cidrhost(var.operator_ip_cidr, 0)) && endswith(var.operator_ip_cidr, "/32")
+    error_message = "operator_ip_cidr must be a single IPv4 address in CIDR form ending in /32."
+  }
+}

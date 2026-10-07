@@ -37,6 +37,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   validated tags.
 - Workload root `workloads/vm-demo/dev`: reads the dev spoke from the foundation state, deploys the
   VM with a static IP in `snet-app` and an interim NAT Gateway for explicit egress. ADR-0008.
+- Runbook `storage-demo` (deploy, verify, 403 troubleshooting by error code, lock-out recovery).
+
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no
   implicit outbound IP). In-place update on all five foundation subnets, no replacement.
@@ -45,6 +47,13 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   per-environment values moved to `variables.tf` + committed `*.auto.tfvars` (no defaults, so a
   missing value fails `plan -input=false`); root `outputs.tf` exposes identifiers only.
   Completes the root file set (engineering_standards §2). No resource changes.
+- **BREAKING** `modules/storage` v2.0.0: storage firewall hardcoded to default action Deny with
+  bypass AzureServices and `public_network_access_enabled = true`. New required inputs
+  `virtual_network_subnet_ids` and `ip_rules` (validated: subnet ID format, IPv4 format, no
+  RFC 1918, no /31 or /32, not both empty). Callers must pass at least one allowed path. ADR-0009.
+- `workloads/storage-demo/{dev,prod}`: allow the environment's spoke `snet-app`, the hub
+  `snet-mgmt` (read from foundation state) and the operator IP (`TF_VAR_operator_ip_cidr`).
+  Prod: in-place update of `stdemoprodat01`, no replacement.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
