@@ -38,6 +38,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Workload root `workloads/vm-demo/dev`: reads the dev spoke from the foundation state, deploys the
   VM with a static IP in `snet-app` and an interim NAT Gateway for explicit egress. ADR-0008.
 - Runbook `storage-demo` (deploy, verify, 403 troubleshooting by error code, lock-out recovery).
+- Persistent root `platform/security`: shared Key Vault `kv-plat-shared-at01` (RBAC authorization, purge protection, 90-day soft delete, firewall Deny with bypass None, allowed hub `snet-mgmt` and operator IP),`prevent_destroy` and a `CanNotDelete` lock, operator Key Vault Secrets Officer at vault scope, root outputs for consumers. ADR-0010 and the platform-security runbook.
+- Workstation runbook: `TF_VAR_operator_object_id` guarded append.
+
 
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no

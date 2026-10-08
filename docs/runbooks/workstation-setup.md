@@ -329,3 +329,35 @@ The first `pre-commit run` builds the hook environments (1–2 minutes, once).
 
 **Verify:** `pre-commit installed at .git/hooks/pre-commit`; `tflint --init` reports the pinned azurerm
 version; every hook `Passed` or `Skipped`.
+
+## 14. Terraform environment variables (`~/.bashrc`)
+
+Values that are personal or change over time never go into tfvars in this public repository. They live in `~/.bashrc` as single literal lines. Each command below is safe to re-run and leaves exactly one line.
+
+Idempotent (value never changes: append only if absent):
+
+```bash
+grep -q '^export ARM_SUBSCRIPTION_ID=' ~/.bashrc || echo 'export ARM_SUBSCRIPTION_ID="<SUBSCRIPTION_ID>"' >> ~/.bashrc   # azurerm 4.x requires it
+grep -q '^export TF_VAR_operator_object_id=' ~/.bashrc || echo 'export TF_VAR_operator_object_id="<OBJECT_ID>"' >> ~/.bashrc  # az ad signed-in-user show --query id -o tsv
+```
+
+Convergent (value changes, e.g. ISP IP: delete any existing line, then append the current one):
+
+```bash
+sed -i '/^export TF_VAR_operator_ip_cidr=/d' ~/.bashrc && echo 'export TF_VAR_operator_ip_cidr="<YOUR_IP>/32"' >> ~/.bashrc
+```
+
+After changing the operator IP: open a new shell, then plan/apply every root that allows it (network spokes, storage-demo, `platform/security`).
+
+Verify without printing values:
+
+```bash
+grep -c '^export TF_VAR_operator_object_id=' ~/.bashrc   # expect 1 (same check for each variable)
+source ~/.bashrc && echo ${#TF_VAR_operator_object_id}   # expect 36
+```
+
+Traps:
+- One Terraform session per state key at a time (a second session waits on, or breaks, the blob lease).
+- `!` inside double quotes triggers Bash history expansion: use single quotes for literal commit and PR text.
+- pre-commit "Failed ... files were modified by this hook": `git add -A` and commit again.
+- Never work from `/mnt/c`; copy files in with `install -m`.
