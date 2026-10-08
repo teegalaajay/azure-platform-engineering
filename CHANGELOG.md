@@ -40,6 +40,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Runbook `storage-demo` (deploy, verify, 403 troubleshooting by error code, lock-out recovery).
 - Persistent root `platform/security`: shared Key Vault `kv-plat-shared-at01` (RBAC authorization, purge protection, 90-day soft delete, firewall Deny with bypass None, allowed hub `snet-mgmt` and operator IP),`prevent_destroy` and a `CanNotDelete` lock, operator Key Vault Secrets Officer at vault scope, root outputs for consumers. ADR-0010 and the platform-security runbook.
 - Workstation runbook: `TF_VAR_operator_object_id` guarded append.
+- Persistent root `platform/cost`: subscription budget `budget-platform-shared-monthly` (USD 50 per
+  month, Actual and Forecasted alerts at 50/80/100 percent) in its own state key. Recipients come
+  from a sensitive `TF_VAR_budget_contact_emails`, never committed. Replaces the portal budget
+  named `undefined`. ADR-0011 and the platform-cost runbook.
 
 
 ### Changed
