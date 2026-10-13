@@ -1,4 +1,4 @@
- output "vnet_id" {
+output "vnet_id" {
   description = "VNet resource ID (used for peering)"
   value       = azurerm_virtual_network.this.id
 }
