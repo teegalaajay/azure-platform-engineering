@@ -1,0 +1,88 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: find
+        env:
+          MIN_DIRS: "11"
+        run: |
+          dirs=$(find . -name versions.tf -not -path '*/.terraform/*' -printf '%h\n' \
+            | sed 's|^\./||' | sort | jq -R . | jq -sc .)
+          count=$(jq length <<< "$dirs")
+          echo "found $count Terraform directories"
+          if [ "$count" -lt "$MIN_DIRS" ]; then
+            echo "::error::expected at least $MIN_DIRS Terraform directories, found $count"
+            exit 1
+          fi
+          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(needs.discover.outputs.dirs) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337  # v6.3.2
+        with:
+          tflint_version: v0.64.0
+      - name: terraform fmt
+        working-directory: ${{ matrix.dir }}
+        run: terraform fmt -check -diff
+      - name: terraform init (no backend)
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false -input=false
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+      - name: tflint plugins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: tflint --init --config="$GITHUB_WORKSPACE/.tflint.hcl"
+      - name: tflint
+        working-directory: ${{ matrix.dir }}
+        run: tflint --config="$GITHUB_WORKSPACE/.tflint.hcl"
+
+  gate:
+    name: validate-gate
+    needs: [discover, validate]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: require every validation to succeed
+        env:
+          DISCOVER: ${{ needs.discover.result }}
+          VALIDATE: ${{ needs.validate.result }}
+        run: |
+          echo "discover=$DISCOVER validate=$VALIDATE"
+          if [ "$DISCOVER" != "success" ] || [ "$VALIDATE" != "success" ]; then
+            echo "::error::validation did not fully succeed"
+            exit 1
+          fi
