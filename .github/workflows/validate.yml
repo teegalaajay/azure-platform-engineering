@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
       - id: find
         env:
-          MIN_DIRS: "0"
+          MIN_DIRS: "11"
         run: |
           dirs=$(find . -name versions.tff -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)
