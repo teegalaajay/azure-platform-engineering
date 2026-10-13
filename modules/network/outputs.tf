@@ -17,7 +17,3 @@ output "nsg_ids" {
   description = "NSG IDs keyed like var.subnets"
   value       = { for k, n in azurerm_network_security_group.this : k => n.id }
 }
-
-output "planted" {
-  value = var.does_not_exist
-}
