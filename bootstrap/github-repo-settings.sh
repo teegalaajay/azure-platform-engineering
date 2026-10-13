@@ -37,6 +37,15 @@ ruleset_json=$(cat <<'JSON'
         "require_extra_approval_for_unattributed_changes": true,
         "allowed_merge_methods": ["squash"]
       }
+    },
+    { "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "validate-gate", "integration_id": 15368 }
+        ]
+      }
     }
   ]
 }
