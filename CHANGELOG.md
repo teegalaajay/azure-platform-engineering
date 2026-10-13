@@ -44,6 +44,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   month, Actual and Forecasted alerts at 50/80/100 percent) in its own state key. Recipients come
   from a sensitive `TF_VAR_budget_contact_emails`, never committed. Replaces the portal budget
   named `undefined`. ADR-0011 and the platform-cost runbook.
+- `.github/workflows/validate.yml`: discovers every directory with a `versions.tf` (floor of 11) and
+  runs `terraform fmt -check`, `init -backend=false`, `validate` and `tflint` in each, with no
+  cloud credentials. A `validate-gate` job is the single required check. Terraform 1.16.4, tflint
+  v0.64.0, third-party actions pinned by SHA. ADR-0012 and the ci-validate runbook.
 
 
 ### Changed
@@ -61,6 +65,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `workloads/storage-demo/{dev,prod}`: allow the environment's spoke `snet-app`, the hub
   `snet-mgmt` (read from foundation state) and the operator IP (`TF_VAR_operator_ip_cidr`).
   Prod: in-place update of `stdemoprodat01`, no replacement.
+- Pre-commit `yamllint` hook reads the repository `.yamllint` (relaxed, 120 columns) instead of an
+  inline `-d relaxed`, so the hook and CI share one configuration.
+- `bootstrap/github-repo-settings.sh`: ruleset `protect-main` now requires the `validate-gate`
+  check from the GitHub Actions app, with the branch-up-to-date policy.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

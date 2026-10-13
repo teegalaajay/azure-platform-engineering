@@ -56,6 +56,7 @@ This is the target design; section 7 shows what is built today.
 | `docs/adr/` | Architecture Decision Records |
 | `docs/runbooks/` | Operational runbooks for every persistent component |
 | `scripts/` | Local helper scripts |
+| `.github/workflows/` | CI workflows (`validate.yml` today; plan and apply later) |
 
 ## 4. Deploying from zero
 
@@ -71,6 +72,8 @@ This is the target design; section 7 shows what is built today.
 - Identity first: OIDC for GitHub Actions, workload identity federation for Azure DevOps,
   managed identity for VMs, Entra ID auth for Terraform state (ADR-0002).
 - `main` accepts changes only through pull requests; nobody can bypass the ruleset (ADR-0003).
+- Every pull request must pass the `validate-gate` check (format, validate and tflint on every Terraform
+  directory, with no cloud credentials) before it can merge (ADR-0012).
 - Pre-commit hooks on every commit: formatting, validation, tflint, yamllint and `gitleaks`
   secret scanning.
 - Terraform state and plan files are treated as secrets and never committed.
@@ -86,6 +89,12 @@ This is the target design; section 7 shows what is built today.
 | [0004](docs/adr/0004-subscription-and-environment-layout.md) | Subscription and environment layout |
 | [0005](docs/adr/0005-remote-state-backend.md) | Remote state backend |
 | [0006](docs/adr/0006-storage-module-and-environment-roots.md) | Storage module and per-environment root modules |
+| [0007](docs/adr/0007-network-topology.md) | Network topology: minimal hub and per-environment spokes |
+| [0008](docs/adr/0008-linux-vm-module-and-workload-root.md) | Linux VM module and the vm-demo workload root |
+| [0009](docs/adr/0009-storage-network-access.md) | Storage network access (firewall and allow-lists) |
+| [0010](docs/adr/0010-platform-key-vault.md) | Platform Key Vault (authorization, network access, protection) |
+| [0011](docs/adr/0011-cost-budget.md) | Subscription cost budget in Terraform |
+| [0012](docs/adr/0012-validate-workflow.md) | Validate workflow for every Terraform directory |
 
 ## 7. Status
 
@@ -94,7 +103,8 @@ This is the target design; section 7 shows what is built today.
 | Repository governance, quality gates, ADRs | ✅ in place |
 | Terraform state backend | ✅ in place |
 | Storage module (hardened baseline) with dev/prod roots | ✅ in place |
-| Foundation network and Key Vault | ⬜ planned |
-| CI/CD: GitHub Actions with OIDC | ⬜ planned |
+| Foundation network, Key Vault and cost budget | ✅ in place |
+| CI: validate workflow on every Terraform directory, required check on `main` | ✅ in place |
+| CI/CD: plan on pull request and apply with OIDC | ⬜ planned |
 | Configuration management (Ansible) and Azure DevOps pipelines | ⬜ planned |
 | Containers (AKS), hub-spoke, private endpoints, Azure Policy | ⬜ planned |
