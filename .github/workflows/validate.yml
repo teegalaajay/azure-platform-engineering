@@ -25,7 +25,7 @@ jobs:
         env:
           MIN_DIRS: "11"
         run: |
-          dirs=$(find . -name versions.tff -not -path '*/.terraform/*' -printf '%h\n' \
+          dirs=$(find . -name versions.tf -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)
           count=$(jq length <<< "$dirs")
           echo "found $count Terraform directories"
