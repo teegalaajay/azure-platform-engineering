@@ -123,24 +123,38 @@ STATE_CONTAINER="tfstate"               # names fixed by ADR-0005 / bootstrap/st
 container_scope=$(az storage container-rm show --storage-account "$STATE_SA" --resource-group "$STATE_RG" \
   --name "$STATE_CONTAINER" --query id -o tsv)   # ARM's own spelling of the container ID, so scope comparisons match exactly
 
-ensure_role() {                         # $1 = service principal object ID, $2 = role name, $3 = scope
-  local sp="$1" role="$2" scope="$3" n
-  n=$(az role assignment list --assignee "$sp" --all \
-    --query "[?roleDefinitionName=='$role' && scope=='$scope'] | length(@)" -o tsv)   # how many assignments of this role exist at exactly this scope
-  if [ "$n" = "0" ]; then
+ensure_role() {                         # $1 = SP object ID, $2 = role name, $3 = scope, $4 = optional condition
+  local sp="$1" role="$2" scope="$3" cond="${4:-}" id got ok=0
+  local extra=()
+  [ -n "$cond" ] && extra=(--condition "$cond" --condition-version 2.0)
+  for id in $(az role assignment list --assignee "$sp" --all \
+      --query "[?roleDefinitionName=='$role' && scope=='$scope'].id" -o tsv); do
+    got=""
+    [ -n "$cond" ] && [ -n "$cond" ] && got=$(az role assignment list --assignee "$sp" --all --query "[?id=='$id'].condition | [0]" -o tsv)
+    if [ -z "$cond" ] || [ "$got" = "$cond" ]; then
+      ok=1
+    else
+      az role assignment delete --ids "$id"
+      echo "removed drifted $role at $scope"
+    fi
+  done
+  if [ "$ok" = "0" ]; then
     az role assignment create --assignee-object-id "$sp" --assignee-principal-type ServicePrincipal \
-      --role "$role" --scope "$scope" --output none    # object ID + type: no directory lookup that could lag behind creation
+      --role "$role" --scope "$scope" "${extra[@]}" --output none
     echo "granted $role at $scope"
   else
     echo "unchanged $role at $scope"
   fi
 }
-
 echo "== role assignments =="
 ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
 ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013, option 5)
 ensure_role "$apply_sp" "Contributor" "$SUB_SCOPE"
 ensure_role "$apply_sp" "Storage Blob Data Contributor" "$container_scope"
+# built-in role definition ID; identical in every tenant, public in Microsoft docs
+ROLE_ID_KV_OFFICER="b86a8fe4-44ce-4948-aee5-eccb2c155cd7"
+RBAC_CONDITION="((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}})) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR (@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}}))"
+ensure_role "$apply_sp" "Role Based Access Control Administrator" "$SUB_SCOPE" "$RBAC_CONDITION"
 echo "-- plan identity --"
 az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
 echo "-- apply identity --"
