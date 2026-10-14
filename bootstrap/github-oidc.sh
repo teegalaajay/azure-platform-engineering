@@ -136,7 +136,12 @@ ensure_role() {                         # $1 = service principal object ID, $2 =
   fi
 }
 
-echo "== role assignments: plan identity =="
+echo "== role assignments =="
 ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
 ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013, option 5)
-az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv   # evidence: everything this identity holds
+ensure_role "$apply_sp" "Contributor" "$SUB_SCOPE"
+ensure_role "$apply_sp" "Storage Blob Data Contributor" "$container_scope"
+echo "-- plan identity --"
+az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
+echo "-- apply identity --"
+az role assignment list --assignee "$apply_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
