@@ -114,3 +114,29 @@ prune_secrets "$plan_id"  "$PLAN_APP"
 prune_secrets "$apply_id" "$APPLY_APP"
 az ad app credential list --id "$plan_id"  --query "length(@)" -o tsv   # evidence: secrets/certs on the plan app
 az ad app credential list --id "$apply_id" --query "length(@)" -o tsv   # evidence: secrets/certs on the apply app
+
+# ---- role assignments: what each identity can do (ADR-0013) ----
+SUB_SCOPE="/subscriptions/${ARM_SUBSCRIPTION_ID}"
+STATE_RG="rg-tfstate"
+STATE_SA="stattfstate01"
+STATE_CONTAINER="tfstate"               # names fixed by ADR-0005 / bootstrap/state-backend.sh
+container_scope=$(az storage container-rm show --storage-account "$STATE_SA" --resource-group "$STATE_RG" \
+  --name "$STATE_CONTAINER" --query id -o tsv)   # ARM's own spelling of the container ID, so scope comparisons match exactly
+
+ensure_role() {                         # $1 = service principal object ID, $2 = role name, $3 = scope
+  local sp="$1" role="$2" scope="$3" n
+  n=$(az role assignment list --assignee "$sp" --all \
+    --query "[?roleDefinitionName=='$role' && scope=='$scope'] | length(@)" -o tsv)   # how many assignments of this role exist at exactly this scope
+  if [ "$n" = "0" ]; then
+    az role assignment create --assignee-object-id "$sp" --assignee-principal-type ServicePrincipal \
+      --role "$role" --scope "$scope" --output none    # object ID + type: no directory lookup that could lag behind creation
+    echo "granted $role at $scope"
+  else
+    echo "unchanged $role at $scope"
+  fi
+}
+
+echo "== role assignments: plan identity =="
+ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
+ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013, option 5)
+az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv   # evidence: everything this identity holds
