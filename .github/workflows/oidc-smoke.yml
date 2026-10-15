@@ -45,4 +45,4 @@ jobs:
           echo "-- acquire lease (the terraform lock; must be denied) --"
           out=$(az storage blob lease acquire --account-name stattfstate01 --container-name tfstate \
             --blob-name "$blob" --lease-duration 15 --auth-mode login --debug 2>&1) && { echo "ERROR: lease acquired"; exit 1; }
-          grep -oi 'x-ms-error-code.*AuthorizationPermissionMismatch' <<< "$out" | head -1 || { echo "ERROR: denied for another reason"; grep -iE "errorcode|not authorized|permission" <<< "$out" | head -3; exit 1; }
+          grep -o '<Code>AuthorizationPermissionMismatch</Code>' <<< "$out" | head -1 || { echo "ERROR: denied for another reason"; grep -iE "errorcode|not authorized|permission" <<< "$out" | head -3; exit 1; }
