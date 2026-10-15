@@ -36,3 +36,13 @@ jobs:
           echo "-- write (must be denied) --"
           out=$(az group create --name rg-oidc-smoke-denied --location eastus2 2>&1) && { echo "ERROR: plan identity could write"; exit 1; }
           grep -o 'AuthorizationFailed' <<< "$out" | head -1 || { echo "ERROR: write failed for another reason"; exit 1; }
+      - name: plan identity can read state but cannot take the lock
+        run: |
+          blob="workloads/storage-demo/dev.tfstate"
+          echo "-- read state blob --"
+          az storage blob show --account-name stattfstate01 --container-name tfstate --name "$blob" \
+            --auth-mode login --query '{name: name, lease: properties.lease.status}' -o json
+          echo "-- acquire lease (the terraform lock; must be denied) --"
+          out=$(az storage blob lease acquire --account-name stattfstate01 --container-name tfstate \
+            --blob-name "$blob" --lease-duration 15 --auth-mode login 2>&1) && { echo "ERROR: lease acquired"; exit 1; }
+          grep -o 'AuthorizationPermissionMismatch' <<< "$out" | head -1 || { echo "ERROR: denied for another reason"; exit 1; }
