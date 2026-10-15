@@ -1,0 +1,27 @@
+name: oidc-smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/oidc-smoke.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan-identity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: request the GitHub OIDC token and show its claims
+        run: |
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange"
+          token=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$url" | jq -r .value)
+          echo "::add-mask::${token}"
+          jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson | {iss, aud, sub, repository, ref, event_name}' <<< "$token"
