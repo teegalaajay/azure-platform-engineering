@@ -69,9 +69,44 @@ gh api -X PUT "repos/$REPO/actions/permissions/fork-pr-contributor-approval" --s
   -f approval_policy=all_external_contributors
 echo "all_external_contributors"
 
+ENV_NAME="production"
+
+echo "== environment: $ENV_NAME =="
+reviewer_id=$(gh api user --jq .id)
+env_json=$(jq -n --argjson reviewer "$reviewer_id" '{
+  wait_timer: 0,
+  prevent_self_review: false,
+  reviewers: [{type: "User", id: $reviewer}],
+  deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}
+}')
+gh api -X PUT "repos/$REPO/environments/$ENV_NAME" --input - --silent <<<"$env_json"
+echo "declared"
+
+echo "== environment deployment branches: $ENV_NAME =="
+policies=$(gh api "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies" \
+  --jq '.branch_policies[] | "\(.id)\t\(.name)\t\(.type)"')
+has_main=0
+while IFS=$'\t' read -r pid pname ptype; do
+  [ -z "$pid" ] && continue
+  if [ "$pname" = "main" ] && [ "$ptype" = "branch" ]; then
+    has_main=1
+  else
+    gh api -X DELETE "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies/$pid" --silent
+    echo "removed deployment branch policy $ptype:$pname"
+  fi
+done <<<"$policies"
+if [ "$has_main" = 0 ]; then
+  gh api -X POST "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies" --silent -f name=main -f type=branch
+  echo "added main"
+else
+  echo "unchanged main"
+fi
+
 echo "== verify =="
 gh api "repos/$REPO" --jq '{has_wiki, allow_squash_merge, allow_merge_commit, allow_rebase_merge, delete_branch_on_merge, squash_merge_commit_title, squash_merge_commit_message}'
 gh api "repos/$REPO/rulesets/$(gh api "repos/$REPO/rulesets" --jq ".[] | select(.name == \"$RULESET_NAME\") | .id")" \
   --jq '{enforcement, bypass_actors, rules: [.rules[].type]}'
 gh api "repos/$REPO/private-vulnerability-reporting"
 gh api "repos/$REPO/actions/permissions/fork-pr-contributor-approval"
+gh api "repos/$REPO/environments/$ENV_NAME" --jq '{name, deployment_branch_policy, protection_rules}'
+gh api "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies" --jq '[.branch_policies[] | {name, type}]'
