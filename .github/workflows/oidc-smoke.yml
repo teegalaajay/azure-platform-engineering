@@ -1,0 +1,48 @@
+name: oidc-smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/oidc-smoke.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan-identity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+    steps:
+      - name: exchange the GitHub token for an Entra session as the plan identity
+        run: |
+          url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange"
+          token=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$url" | jq -r .value)
+          echo "::add-mask::${token}"
+          jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson | {iss, aud, sub, repository, ref, event_name}' <<< "$token"
+          az login --service-principal -u "$AZURE_CLIENT_ID" -t "$AZURE_TENANT_ID" --federated-token "$token" --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "-- read --"
+          az account show --query '{subscription: name, state: state}' -o json
+          echo "-- write (must be denied) --"
+          out=$(az group create --name rg-oidc-smoke-denied --location eastus2 2>&1) && { echo "ERROR: plan identity could write"; exit 1; }
+          grep -o 'AuthorizationFailed' <<< "$out" | head -1 || { echo "ERROR: write failed for another reason"; exit 1; }
+      - name: plan identity can read state but cannot take the lock
+        run: |
+          blob="workloads/storage-demo/dev.tfstate"
+          echo "-- read state blob --"
+          az storage blob show --account-name stattfstate01 --container-name tfstate --name "$blob" \
+            --auth-mode login --query '{name: name, lease: properties.lease.status}' -o json
+          echo "-- acquire lease (the terraform lock; must be denied) --"
+          out=$(az storage blob lease acquire --account-name stattfstate01 --container-name tfstate \
+            --blob-name "$blob" --lease-duration 15 --auth-mode login --debug 2>&1) && { echo "ERROR: lease acquired"; exit 1; }
+          grep -o '<Code>AuthorizationPermissionMismatch</Code>' <<< "$out" | head -1 || { echo "ERROR: denied for another reason"; grep -iE "errorcode|not authorized|permission" <<< "$out" | head -3; exit 1; }
