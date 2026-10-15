@@ -1,0 +1,48 @@
+name: plan
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/plan.yml"
+      - "workloads/storage-demo/prod/**"
+      - "modules/storage/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: plan (workloads/storage-demo/prod)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+      - name: terraform init
+        working-directory: workloads/storage-demo/prod
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+        run: terraform init -input=false
+      - name: terraform plan
+        working-directory: workloads/storage-demo/prod
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
+          TF_VAR_operator_ip_cidr: ${{ secrets.OPERATOR_IP_CIDR }}
+        run: terraform plan -input=false -lock=false -lock-timeout=30s -detailed-exitcode
