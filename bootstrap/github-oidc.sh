@@ -146,6 +146,26 @@ ensure_role() {                         # $1 = SP object ID, $2 = role name, $3 
     echo "unchanged $role at $scope"
   fi
 }
+
+LOCK_ROLE="Platform Lock Writer"
+lock_role_def=$(cat <<EOF
+{
+  "Name": "$LOCK_ROLE",
+  "IsCustom": true,
+  "Description": "Create and update management locks. Cannot delete them.",
+  "Actions": ["Microsoft.Authorization/locks/read", "Microsoft.Authorization/locks/write"],
+  "NotActions": [],
+  "AssignableScopes": ["$SUB_SCOPE"]
+}
+EOF
+)
+n=$(az role definition list --custom-role-only true --name "$LOCK_ROLE" --query "length(@)" -o tsv)
+case "$n" in
+  0) az role definition create --role-definition "$lock_role_def" --output none; echo "created custom role $LOCK_ROLE" ;;
+  1) az role definition update --role-definition "$lock_role_def" --output none; echo "updated custom role $LOCK_ROLE" ;;
+  *) echo "ERROR: $n custom roles named $LOCK_ROLE" >&2; exit 1 ;;
+esac
+
 echo "== role assignments =="
 ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
 ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013, option 5)
@@ -155,6 +175,7 @@ ensure_role "$apply_sp" "Storage Blob Data Contributor" "$container_scope"
 ROLE_ID_KV_OFFICER="b86a8fe4-44ce-4948-aee5-eccb2c155cd7"
 RBAC_CONDITION="((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}})) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR (@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}}))"
 ensure_role "$apply_sp" "Role Based Access Control Administrator" "$SUB_SCOPE" "$RBAC_CONDITION"
+ensure_role "$apply_sp" "$LOCK_ROLE" "$SUB_SCOPE"
 echo "-- plan identity --"
 az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
 echo "-- apply identity --"
