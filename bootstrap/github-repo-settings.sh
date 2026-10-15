@@ -114,12 +114,14 @@ tenant_id=$(az account show --query tenantId -o tsv)
 subscription_id=$(az account show --query id -o tsv)
 plan_client_id=$(az_app_id app-gh-plan-shared)
 apply_client_id=$(az_app_id app-gh-apply-shared)
+: "${TF_VAR_operator_ip_cidr:?export TF_VAR_operator_ip_cidr first}"   # stop with a clear message instead of storing an empty secret
 DECLARED_SECRETS=""
 set_secret() { gh secret set "$1" --repo "$REPO" --body "$2"; DECLARED_SECRETS+=" $1"; echo "set $1"; }
 set_secret AZURE_TENANT_ID "$tenant_id"
 set_secret AZURE_SUBSCRIPTION_ID "$subscription_id"
 set_secret AZURE_CLIENT_ID_PLAN "$plan_client_id"
 set_secret AZURE_CLIENT_ID_APPLY "$apply_client_id"
+set_secret OPERATOR_IP_CIDR "$TF_VAR_operator_ip_cidr"   # declared, so the prune loop below keeps it
 for name in $(gh secret list --repo "$REPO" --json name --jq '.[].name'); do
   case "$DECLARED_SECRETS " in
     *" $name "*) ;;
