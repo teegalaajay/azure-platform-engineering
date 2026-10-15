@@ -57,6 +57,16 @@ az ad app list --filter "startswith(displayName,'app-gh')" --query "[].[displayN
 
 # ---- federated credentials: who may become each identity (ADR-0013) ----
 GH_REPO="teegalaajay/azure-platform-engineering"
+# GitHub numeric IDs, pinned. The OIDC subject carries them, so a deleted-and-recreated repo
+# with the same name does not match. The guard fails the run if GitHub reports different IDs.
+GH_OWNER_ID="271292242"
+GH_REPO_ID="1396564157"
+GH_SUB="repo:${GH_REPO%%/*}@${GH_OWNER_ID}/${GH_REPO#*/}@${GH_REPO_ID}"
+live_ids=$(gh api "repos/${GH_REPO}" --jq '"\(.owner.id) \(.id)"')
+[ "$live_ids" = "${GH_OWNER_ID} ${GH_REPO_ID}" ] || {
+  echo "ERROR: GitHub IDs for ${GH_REPO} are ${live_ids}, expected ${GH_OWNER_ID} ${GH_REPO_ID}" >&2
+  exit 1
+}
 ISSUER="https://token.actions.githubusercontent.com"   # GitHub's OIDC issuer: Entra fetches signing keys from here
 AUDIENCE="api://AzureADTokenExchange"                  # the audience GitHub puts in the token for Azure
 PLAN_CRED="github-pr-plan"
@@ -92,8 +102,8 @@ prune_fic() {                           # $1 = client ID, $2 = the one credentia
 }
 
 echo "== federated credentials =="
-ensure_fic "$plan_id"  "$PLAN_CRED"  "repo:${GH_REPO}:pull_request"
-ensure_fic "$apply_id" "$APPLY_CRED" "repo:${GH_REPO}:environment:production"
+ensure_fic "$plan_id"  "$PLAN_CRED"  "${GH_SUB}:pull_request"
+ensure_fic "$apply_id" "$APPLY_CRED" "${GH_SUB}:environment:production"
 prune_fic  "$plan_id"  "$PLAN_CRED"
 prune_fic  "$apply_id" "$APPLY_CRED"
 
