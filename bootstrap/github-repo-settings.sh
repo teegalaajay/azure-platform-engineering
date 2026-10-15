@@ -102,7 +102,7 @@ else
   echo "unchanged main"
 fi
 
-echo "== repository variables =="
+echo "== repository secrets (identifiers stored as secrets so GitHub masks them in public logs) =="
 az_app_id() {                           # $1 = display name; fails unless exactly one app registration matches
   local ids n
   ids=$(az ad app list --display-name "$1" --query "[].appId" -o tsv)
@@ -114,19 +114,22 @@ tenant_id=$(az account show --query tenantId -o tsv)
 subscription_id=$(az account show --query id -o tsv)
 plan_client_id=$(az_app_id app-gh-plan-shared)
 apply_client_id=$(az_app_id app-gh-apply-shared)
-DECLARED_VARS=""
-set_var() { gh variable set "$1" --repo "$REPO" --body "$2"; DECLARED_VARS+=" $1"; echo "set $1"; }
-set_var AZURE_TENANT_ID "$tenant_id"
-set_var AZURE_SUBSCRIPTION_ID "$subscription_id"
-set_var AZURE_CLIENT_ID_PLAN "$plan_client_id"
-set_var AZURE_CLIENT_ID_APPLY "$apply_client_id"
-for name in $(gh variable list --repo "$REPO" --json name --jq '.[].name'); do
-  case "$DECLARED_VARS " in
+DECLARED_SECRETS=""
+set_secret() { gh secret set "$1" --repo "$REPO" --body "$2"; DECLARED_SECRETS+=" $1"; echo "set $1"; }
+set_secret AZURE_TENANT_ID "$tenant_id"
+set_secret AZURE_SUBSCRIPTION_ID "$subscription_id"
+set_secret AZURE_CLIENT_ID_PLAN "$plan_client_id"
+set_secret AZURE_CLIENT_ID_APPLY "$apply_client_id"
+for name in $(gh secret list --repo "$REPO" --json name --jq '.[].name'); do
+  case "$DECLARED_SECRETS " in
     *" $name "*) ;;
-    *) gh variable delete "$name" --repo "$REPO"; echo "removed undeclared variable $name" ;;
+    *) gh secret delete "$name" --repo "$REPO"; echo "removed undeclared secret $name" ;;
   esac
 done
-
+for name in $(gh variable list --repo "$REPO" --json name --jq '.[].name'); do
+  gh variable delete "$name" --repo "$REPO"
+  echo "removed variable $name (this repo declares none)"
+done
 # Requires: gh authenticated as a repository admin, az logged in to the target subscription, jq
 
 echo "== verify =="
@@ -137,4 +140,4 @@ gh api "repos/$REPO/private-vulnerability-reporting"
 gh api "repos/$REPO/actions/permissions/fork-pr-contributor-approval"
 gh api "repos/$REPO/environments/$ENV_NAME" --jq '{name, deployment_branch_policy, protection_rules}'
 gh api "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies" --jq '[.branch_policies[] | {name, type}]'
-gh variable list --repo "$REPO"
+gh secret list --repo "$REPO"
