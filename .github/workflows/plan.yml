@@ -8,6 +8,10 @@ on:
       - "platform/**"
       - "workloads/**"
 
+concurrency:
+  group: plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -65,6 +69,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
         run: terraform init -input=false
       - name: terraform plan
+        id: plan
         working-directory: ${{ matrix.dir }}
         env:
           DIR: ${{ matrix.dir }}
@@ -82,22 +87,98 @@ jobs:
           code=$?
           set -e
           cat plan.txt
-          case "$code" in
-            0) result="no changes" ;;
-            2) result="changes" ;;
-            *) result="error" ;;
-          esac
+          out="$RUNNER_TEMP/out"
+          mkdir -p "$out"
+          printf '%s' "$DIR" > "$out/dir"
+          printf '%s' "$code" > "$out/code"
+          cp plan.txt "$out/plan.txt"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "safe=${DIR//\//-}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() && steps.plan.outputs.safe != '' }}
+        with:
+          name: plan-${{ steps.plan.outputs.safe }}
+          path: ${{ runner.temp }}/out
+          retention-days: 1
+          if-no-files-found: error
+      - name: fail the leg on a Terraform error
+        if: ${{ steps.plan.outputs.code != '0' && steps.plan.outputs.code != '2' }}
+        run: |
+          echo "::error::terraform plan ended with an error (exit code other than 0 or 2)"
+          exit 1
+
+  comment:
+    needs: [discover, plan]
+    if: ${{ always() && needs.discover.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: plan-*
+          path: results
+      - name: build and upsert the pull request comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          DIRS: ${{ needs.discover.outputs.dirs }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/body.md"
+          rows="$RUNNER_TEMP/rows.md"
+          details="$RUNNER_TEMP/details.md"
+          : > "$rows"
+          : > "$details"
+          for dir in $(jq -r '.[]' <<< "$DIRS"); do
+            res="results/plan-${dir//\//-}"
+            if [ -f "$res/code" ]; then
+              code=$(cat "$res/code")
+              case "$code" in
+                0) result="no changes" ;;
+                2) result="changes" ;;
+                *) result="ERROR" ;;
+              esac
+              printf '| `%s` | %s | %s |\n' "$dir" "$result" "$code" >> "$rows"
+              {
+                echo "<details><summary><code>$dir</code>: $result</summary>"
+                echo
+                echo '````'
+                head -c 5000 "$res/plan.txt"
+                echo
+                echo '````'
+                if [ "$(wc -c < "$res/plan.txt")" -gt 5000 ]; then
+                  echo "(truncated at 5000 bytes; full output in the job log)"
+                fi
+                echo "</details>"
+                echo
+              } >> "$details"
+            else
+              printf '| `%s` | **NO RESULT** (leg failed before the plan) | - |\n' "$dir" >> "$rows"
+            fi
+          done
           {
-            echo "### plan: $DIR"
-            echo "Result: **$result** (exit code $code)"
+            echo "<!-- plan-comment -->"
+            echo "## Terraform plan"
             echo
-            echo "<details><summary>plan output</summary>"
+            echo "| Root | Result | Exit code |"
+            echo "|---|---|---|"
+            cat "$rows"
             echo
-            echo '```'
-            cat plan.txt
-            echo '```'
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
-            exit 1
+            cat "$details"
+            echo "Read-only plan identity, \`-lock=false\` (state may be read during an apply)."
+            echo "[Run]($RUN_URL)"
+          } > "$body"
+          filter='.[] | select(.user.login == "github-actions[bot]")'
+          filter+=' | select(.body | startswith("<!-- plan-comment -->")) | .id'
+          ids=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq "$filter")
+          id="${ids%%$'\n'*}"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$body" --silent
+            echo "updated comment $id"
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$body" --silent
+            echo "created comment"
           fi
