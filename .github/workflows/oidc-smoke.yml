@@ -18,10 +18,21 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
     steps:
-      - name: request the GitHub OIDC token and show its claims
+      - name: exchange the GitHub token for an Entra session as the plan identity
         run: |
           url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange"
           token=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$url" | jq -r .value)
           echo "::add-mask::${token}"
           jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson | {iss, aud, sub, repository, ref, event_name}' <<< "$token"
+          az login --service-principal -u "$AZURE_CLIENT_ID" -t "$AZURE_TENANT_ID" --federated-token "$token" --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "-- read --"
+          az account show --query '{subscription: name, state: state}' -o json
+          echo "-- write (must be denied) --"
+          out=$(az group create --name rg-oidc-smoke-denied --location eastus2 2>&1) && { echo "ERROR: plan identity could write"; exit 1; }
+          grep -o 'AuthorizationFailed' <<< "$out" | head -1 || { echo "ERROR: write failed for another reason"; exit 1; }
