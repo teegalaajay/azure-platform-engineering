@@ -188,3 +188,4 @@ jobs:
             gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$body" --silent
             echo "created comment"
           fi
+# retrigger: prove the plan comment updates in place
