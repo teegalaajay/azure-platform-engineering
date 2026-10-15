@@ -4,8 +4,9 @@ on:
   pull_request:
     paths:
       - ".github/workflows/plan.yml"
-      - "workloads/storage-demo/prod/**"
-      - "modules/storage/**"
+      - "modules/**"
+      - "platform/**"
+      - "workloads/**"
 
 permissions:
   contents: read
@@ -15,9 +16,35 @@ defaults:
     shell: bash
 
 jobs:
-  plan:
-    name: plan (workloads/storage-demo/prod)
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: find
+        env:
+          MIN_DIRS: "8"
+        run: |
+          dirs=$(find . -name backend.tf -not -path '*/.terraform/*' -printf '%h\n' \
+            | sed 's|^\./||' | sort | jq -R . | jq -sc .)
+          count=$(jq length <<< "$dirs")
+          echo "found $count Terraform roots"
+          if [ "$count" -lt "$MIN_DIRS" ]; then
+            echo "::error::expected at least $MIN_DIRS roots with a backend, found $count"
+            exit 1
+          fi
+          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
+
+  plan:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(needs.discover.outputs.dirs) }}
     permissions:
       contents: read
       id-token: write
@@ -30,7 +57,7 @@ jobs:
           terraform_version: 1.16.4
           terraform_wrapper: false
       - name: terraform init
-        working-directory: workloads/storage-demo/prod
+        working-directory: ${{ matrix.dir }}
         env:
           ARM_USE_OIDC: "true"
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -38,11 +65,39 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
         run: terraform init -input=false
       - name: terraform plan
-        working-directory: workloads/storage-demo/prod
+        working-directory: ${{ matrix.dir }}
         env:
+          DIR: ${{ matrix.dir }}
           ARM_USE_OIDC: "true"
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
           TF_VAR_operator_ip_cidr: ${{ secrets.OPERATOR_IP_CIDR }}
-        run: terraform plan -input=false -lock=false -lock-timeout=30s -detailed-exitcode
+          TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
+          TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          set +e
+          terraform plan -input=false -lock=false -detailed-exitcode -no-color > plan.txt 2>&1
+          code=$?
+          set -e
+          cat plan.txt
+          case "$code" in
+            0) result="no changes" ;;
+            2) result="changes" ;;
+            *) result="error" ;;
+          esac
+          {
+            echo "### plan: $DIR"
+            echo "Result: **$result** (exit code $code)"
+            echo
+            echo "<details><summary>plan output</summary>"
+            echo
+            echo '```'
+            cat plan.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+            exit 1
+          fi
