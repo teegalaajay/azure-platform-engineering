@@ -102,6 +102,33 @@ else
   echo "unchanged main"
 fi
 
+echo "== repository variables =="
+az_app_id() {                           # $1 = display name; fails unless exactly one app registration matches
+  local ids n
+  ids=$(az ad app list --display-name "$1" --query "[].appId" -o tsv)
+  n=$(printf '%s\n' "$ids" | grep -c . || true)
+  [ "$n" = "1" ] || { echo "ERROR: $n app registrations named $1" >&2; return 1; }
+  printf '%s' "$ids"
+}
+tenant_id=$(az account show --query tenantId -o tsv)
+subscription_id=$(az account show --query id -o tsv)
+plan_client_id=$(az_app_id app-gh-plan-shared)
+apply_client_id=$(az_app_id app-gh-apply-shared)
+DECLARED_VARS=""
+set_var() { gh variable set "$1" --repo "$REPO" --body "$2"; DECLARED_VARS+=" $1"; echo "set $1"; }
+set_var AZURE_TENANT_ID "$tenant_id"
+set_var AZURE_SUBSCRIPTION_ID "$subscription_id"
+set_var AZURE_CLIENT_ID_PLAN "$plan_client_id"
+set_var AZURE_CLIENT_ID_APPLY "$apply_client_id"
+for name in $(gh variable list --repo "$REPO" --json name --jq '.[].name'); do
+  case "$DECLARED_VARS " in
+    *" $name "*) ;;
+    *) gh variable delete "$name" --repo "$REPO"; echo "removed undeclared variable $name" ;;
+  esac
+done
+
+# Requires: gh authenticated as a repository admin, az logged in to the target subscription, jq
+
 echo "== verify =="
 gh api "repos/$REPO" --jq '{has_wiki, allow_squash_merge, allow_merge_commit, allow_rebase_merge, delete_branch_on_merge, squash_merge_commit_title, squash_merge_commit_message}'
 gh api "repos/$REPO/rulesets/$(gh api "repos/$REPO/rulesets" --jq ".[] | select(.name == \"$RULESET_NAME\") | .id")" \
@@ -110,3 +137,4 @@ gh api "repos/$REPO/private-vulnerability-reporting"
 gh api "repos/$REPO/actions/permissions/fork-pr-contributor-approval"
 gh api "repos/$REPO/environments/$ENV_NAME" --jq '{name, deployment_branch_policy, protection_rules}'
 gh api "repos/$REPO/environments/$ENV_NAME/deployment-branch-policies" --jq '[.branch_policies[] | {name, type}]'
+gh variable list --repo "$REPO"
