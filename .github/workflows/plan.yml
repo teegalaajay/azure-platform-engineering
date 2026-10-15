@@ -91,7 +91,8 @@ jobs:
           mkdir -p "$out"
           printf '%s' "$DIR" > "$out/dir"
           printf '%s' "$code" > "$out/code"
-          cp plan.txt "$out/plan.txt"
+          guid='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+          sed -E "s/$guid/***/g" plan.txt > "$out/plan.txt"
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "safe=${DIR//\//-}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
@@ -173,6 +174,11 @@ jobs:
           } > "$body"
           filter='.[] | select(.user.login == "github-actions[bot]")'
           filter+=' | select(.body | startswith("<!-- plan-comment -->")) | .id'
+          guid='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+          if grep -Eq "$guid" "$body"; then
+            echo "::error::an unmasked identifier is in the comment body; nothing was posted"
+            exit 1
+          fi
           ids=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq "$filter")
           id="${ids%%$'\n'*}"
           if [ -n "$id" ]; then
