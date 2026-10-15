@@ -123,10 +123,12 @@ STATE_CONTAINER="tfstate"               # names fixed by ADR-0005 / bootstrap/st
 container_scope=$(az storage container-rm show --storage-account "$STATE_SA" --resource-group "$STATE_RG" \
   --name "$STATE_CONTAINER" --query id -o tsv)   # ARM's own spelling of the container ID, so scope comparisons match exactly
 
+declare -A DECLARED=()
 ensure_role() {                         # $1 = SP object ID, $2 = role name, $3 = scope, $4 = optional condition
   local sp="$1" role="$2" scope="$3" cond="${4:-}" id got ok=0
   local extra=()
   [ -n "$cond" ] && extra=(--condition "$cond" --condition-version 2.0)
+  DECLARED["$sp|$role|$scope"]=1
   for id in $(az role assignment list --assignee "$sp" --all \
       --query "[?roleDefinitionName=='$role' && scope=='$scope'].id" -o tsv); do
     got=""
@@ -176,6 +178,21 @@ ROLE_ID_KV_OFFICER="b86a8fe4-44ce-4948-aee5-eccb2c155cd7"
 RBAC_CONDITION="((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}})) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR (@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${ROLE_ID_KV_OFFICER}}))"
 ensure_role "$apply_sp" "Role Based Access Control Administrator" "$SUB_SCOPE" "$RBAC_CONDITION"
 ensure_role "$apply_sp" "$LOCK_ROLE" "$SUB_SCOPE"
+
+prune_roles() {                         # $1 = SP object ID
+  local sp="$1" id role scope key
+  while IFS=$'\t' read -r id role scope; do
+    [ -z "$id" ] && continue
+    key="$sp|$role|$scope"
+    if [ -z "${DECLARED[$key]:-}" ]; then
+      az role assignment delete --ids "$id"
+      echo "removed undeclared $role at $scope"
+    fi
+  done < <(az role assignment list --assignee "$sp" --all --query "[].[id, roleDefinitionName, scope]" -o tsv)
+}
+prune_roles "$plan_sp"
+prune_roles "$apply_sp"
+
 echo "-- plan identity --"
 az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
 echo "-- apply identity --"
