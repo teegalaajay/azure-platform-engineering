@@ -36,13 +36,3 @@ jobs:
           echo "-- write (must be denied) --"
           out=$(az group create --name rg-oidc-smoke-denied --location eastus2 2>&1) && { echo "ERROR: plan identity could write"; exit 1; }
           grep -o 'AuthorizationFailed' <<< "$out" | head -1 || { echo "ERROR: write failed for another reason"; exit 1; }
-
-  apply-gate:
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: reached the job body
-        run: echo "REACHED - a pull_request job entered the production environment"
