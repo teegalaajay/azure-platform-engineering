@@ -82,3 +82,11 @@ variable "private_ip_address" {
     error_message = "private_ip_address must be null or a valid IPv4 address."
   }
 }
+
+
+variable "custom_data" {
+  description = "Cloud-init payload as plain text; the module base64-encodes it. It runs as root at first boot and can undo any baseline set here, so the caller owns its content and must review it. It may carry secrets, which then sit in state and on the VM. Changing it is expected to replace the VM (check the plan)."
+  type        = string
+  default     = null
+  sensitive   = true
+}

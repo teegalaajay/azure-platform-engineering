@@ -22,7 +22,8 @@ resource "azurerm_linux_virtual_machine" "this" {
   network_interface_ids = [azurerm_network_interface.this.id] # reference = implicit dependency: NIC first
   tags                  = var.tags
 
-  disable_password_authentication = true # SSH key only
+  disable_password_authentication = true                                                           # SSH key only
+  custom_data                     = var.custom_data == null ? null : base64encode(var.custom_data) # cloud-init; Azure expects base64
 
   admin_ssh_key {
     username   = var.admin_username
