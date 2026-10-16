@@ -1,0 +1,10 @@
+environment         = "shared"
+location            = "eastus2"
+data_classification = "confidential" # the runner can reach the state account and Key Vault paths
+vm_size             = "Standard_D2als_v6"
+vm_zone             = "2"          # zones 1 and 3 are restricted for this subscription (2026-10-05)
+private_ip_address  = "10.20.3.10" # snet-mgmt is 10.20.3.0/26
+repo_url            = "https://github.com/teegalaajay/azure-platform-engineering"
+runner_version      = "2.338.0"
+runner_sha256       = "af4b794c1bc41d73d40535e3fe092a39f9679cd8d965954c2aca25a05ca41d32"
+terraform_version   = "1.16.4"

@@ -96,8 +96,8 @@ Costs accepted:
 ## Deferred
 
 - Azure DevOps workload identity federation (Weeks 6 to 7).
-- A managed identity for the self-hosted runner (Week 3 Day 6).
-- Firewalling the state account (open item 42). Hosted runners have no fixed IP, so this waits for the runner.
+- ~~A managed identity for the self-hosted runner.~~ Superseded by ADR-0015: the runner has no managed identity.
+- Firewalling the state account (open item 42). Hosted runners have no fixed IP. ADR-0015 puts only apply on the runner and keeps plan on hosted runners, so this still waits for a private path for plan.
 - A least-privilege role for the cost root (open item 50).
 - Entra audit-log alerting for these objects.
 - Testing `joinViaServiceEndpoint/action` and Contributor switching a vault back to access policies (open items 35 and 44).

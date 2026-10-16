@@ -1,0 +1,5 @@
+# Self-hosted runner labels used by workflows (the runner-vm module sets them in cloud-init).
+# Without this, actionlint rejects any custom label, and a typo would queue a job forever.
+self-hosted-runner:
+  labels:
+    - platform-apply

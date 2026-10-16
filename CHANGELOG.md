@@ -48,6 +48,17 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   runs `terraform fmt -check`, `init -backend=false`, `validate` and `tflint` in each, with no
   cloud credentials. A `validate-gate` job is the single required check. Terraform 1.16.4, tflint
   v0.64.0, third-party actions pinned by SHA. ADR-0012 and the ci-validate runbook.
+- `modules/linux-vm`: optional, sensitive `custom_data` input for first-boot cloud-init (default null).
+- `modules/runner-vm`: cloud-init that installs the Azure CLI and Terraform from vendor repositories
+  with key-fingerprint checks, a non-root `runner` user, and a pinned, checksum-verified GitHub
+  Actions runner registered with `--ephemeral`.
+- Ephemeral root `platform/runner`: runner VM in `snet-mgmt` with an interim NAT Gateway; the
+  registration token is supplied inline at apply time.
+- `.github/workflows/apply.yml`: apply on merge, one job on the self-hosted runner behind the
+  `production` environment, persistent roots in dependency order, with a check that every root is
+  classified. `.github/actionlint.yaml` declares the custom runner label. ADR-0015 and the
+  `github-runner` runbook.
+- The plan workflow passes a plan-only placeholder for the runner's registration token.
 
 
 ### Changed

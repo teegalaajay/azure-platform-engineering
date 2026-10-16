@@ -81,6 +81,8 @@ jobs:
           TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
           TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+                    # Plan-only placeholder: the real token is minted at apply time and is dead after an hour.
+          TF_VAR_registration_token: "plan-only-placeholder"
         run: |
           set +e
           terraform plan -input=false -lock=false -detailed-exitcode -no-color > plan.txt 2>&1
