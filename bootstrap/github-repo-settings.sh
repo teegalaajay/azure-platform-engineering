@@ -114,12 +114,20 @@ tenant_id=$(az account show --query tenantId -o tsv)
 subscription_id=$(az account show --query id -o tsv)
 plan_client_id=$(az_app_id app-gh-plan-shared)
 apply_client_id=$(az_app_id app-gh-apply-shared)
+: "${TF_VAR_operator_ip_cidr:?export TF_VAR_operator_ip_cidr first}"   # stop with a clear message instead of storing an empty secret
+: "${TF_VAR_budget_contact_emails:?export TF_VAR_budget_contact_emails first}"   # the JSON list for platform/cost
+: "${TF_VAR_operator_object_id:?export TF_VAR_operator_object_id first}"   # your Entra object ID for platform/security
+: "${TF_VAR_ssh_public_key:?export TF_VAR_ssh_public_key first}"   # the key text for workloads/vm-demo/dev
 DECLARED_SECRETS=""
 set_secret() { gh secret set "$1" --repo "$REPO" --body "$2"; DECLARED_SECRETS+=" $1"; echo "set $1"; }
 set_secret AZURE_TENANT_ID "$tenant_id"
 set_secret AZURE_SUBSCRIPTION_ID "$subscription_id"
 set_secret AZURE_CLIENT_ID_PLAN "$plan_client_id"
 set_secret AZURE_CLIENT_ID_APPLY "$apply_client_id"
+set_secret OPERATOR_IP_CIDR "$TF_VAR_operator_ip_cidr"   # declared, so the prune loop below keeps it
+set_secret BUDGET_CONTACT_EMAILS "$TF_VAR_budget_contact_emails"   # same bytes Terraform reads on your laptop, so CI and laptop agree
+set_secret OPERATOR_OBJECT_ID "$TF_VAR_operator_object_id"   # declared, so the prune loop keeps it
+set_secret SSH_PUBLIC_KEY "$TF_VAR_ssh_public_key"   # declared, so the prune loop keeps it
 for name in $(gh secret list --repo "$REPO" --json name --jq '.[].name'); do
   case "$DECLARED_SECRETS " in
     *" $name "*) ;;
