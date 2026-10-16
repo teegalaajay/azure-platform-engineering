@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copy the repo (minus state, plans, provider caches, secrets) into the Claude
-# project folder so the mentor can read the REAL files next session.
+# Copy the repo (minus state, plans, provider caches, secrets) into the
+# project folder so the real files can be reviewed next session.
 # Install: cp to ~/azure-platform-engineering/scripts/ && chmod +x
 # Set PROJECT_DIR once in ~/.bashrc, e.g.:
-#   export AZ_ROADMAP_PROJECT_DIR="/mnt/c/Users/<you>/OneDrive/Documents/Claude/Projects/<v2 project folder>"
+#   export AZ_ROADMAP_PROJECT_DIR="/mnt/c/Users/<you>/<path to your project folder>"
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$HOME/azure-platform-engineering}"

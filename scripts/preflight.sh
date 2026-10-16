@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-of-day definition-of-done check. Paste the output to Claude.
+# End-of-day definition-of-done check. Review the output before closing the day.
 # Install: cp to ~/azure-platform-engineering/scripts/ && chmod +x
 set -uo pipefail
 REPO_DIR="${REPO_DIR:-$HOME/azure-platform-engineering}"
