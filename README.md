@@ -34,7 +34,7 @@ flowchart LR
       vnet["VNet: snet-app / snet-data / snet-mgmt"]
       kv["Key Vault (RBAC, purge protection)"]
     end
-    runner["Self-hosted runner / ADO agent<br/>snet-mgmt, managed identity"]
+    runner["Self-hosted runner / ADO agent<br/>snet-mgmt, no managed identity (ADR-0015)"]
     wl["Workloads (ephemeral)<br/>VMs, storage, AKS"]
   end
   runner --> wl
@@ -56,7 +56,7 @@ This is the target design; section 7 shows what is built today.
 | `docs/adr/` | Architecture Decision Records |
 | `docs/runbooks/` | Operational runbooks for every persistent component |
 | `scripts/` | Local helper scripts |
-| `.github/workflows/` | CI workflows (`validate.yml` today; plan and apply later) |
+| `.github/workflows/` | CI workflows (`validate.yml` and `plan.yml` on pull requests; `apply.yml` on merge, on the self-hosted runner) |
 
 ## 4. Deploying from zero
 
@@ -95,6 +95,9 @@ This is the target design; section 7 shows what is built today.
 | [0010](docs/adr/0010-platform-key-vault.md) | Platform Key Vault (authorization, network access, protection) |
 | [0011](docs/adr/0011-cost-budget.md) | Subscription cost budget in Terraform |
 | [0012](docs/adr/0012-validate-workflow.md) | Validate workflow for every Terraform directory |
+| [0013](docs/adr/0013-github-oidc-identities.md) | GitHub Actions identities for Azure (OIDC, plan and apply) |
+| [0014](docs/adr/0014-plan-on-pull-request.md) | Plan on pull request for every Terraform root |
+| [0015](docs/adr/0015-github-runner-and-apply-on-merge.md) | Self-hosted GitHub Actions runner and apply on merge |
 
 ## 7. Status
 
@@ -105,6 +108,7 @@ This is the target design; section 7 shows what is built today.
 | Storage module (hardened baseline) with dev/prod roots | ✅ in place |
 | Foundation network, Key Vault and cost budget | ✅ in place |
 | CI: validate workflow on every Terraform directory, required check on `main` | ✅ in place |
-| CI/CD: plan on pull request and apply with OIDC | ⬜ planned |
+| CI: plan on pull request, read-only OIDC identity | ✅ in place |
+| CD: apply on merge, self-hosted runner, `production` approval | 🟡 built, first run pending |
 | Configuration management (Ansible) and Azure DevOps pipelines | ⬜ planned |
 | Containers (AKS), hub-spoke, private endpoints, Azure Policy | ⬜ planned |
