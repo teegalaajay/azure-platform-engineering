@@ -1,0 +1,80 @@
+name: apply
+
+# Apply on merge: runs for pushes to main only, never for pull requests.
+# One job, because the self-hosted runner is ephemeral and takes exactly one job (ADR-0015).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/apply.yml"
+      - "modules/**"
+      - "platform/**"
+      - "workloads/**"
+
+concurrency:
+  group: apply
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apply:
+    runs-on: [self-hosted, linux, x64, platform-apply]
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
+      TF_VAR_operator_ip_cidr: ${{ secrets.OPERATOR_IP_CIDR }}
+      TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
+      TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
+      # Dependency order: the hub first, then every root that reads its state.
+      APPLY_ROOTS: >-
+        platform/foundation/hub
+        platform/foundation/dev
+        platform/foundation/prod
+        platform/security
+        platform/cost
+        workloads/storage-demo/prod
+      # Ephemeral roots: applied by hand from the workstation, never by CI.
+      SKIP_ROOTS: >-
+        platform/runner
+        workloads/storage-demo/dev
+        workloads/vm-demo/dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: the runner has the pinned Terraform
+        run: |
+          have=$(terraform version -json | jq -r .terraform_version)
+          echo "terraform $have"
+          test "$have" = "1.16.4"
+      - name: every root is classified as apply or skip
+        run: |
+          read -ra apply_roots <<< "$APPLY_ROOTS"
+          read -ra skip_roots <<< "$SKIP_ROOTS"
+          found=$(find . -name backend.tf -not -path '*/.terraform/*' -printf '%h\n' | sed 's|^\./||' | sort)
+          expected=$(printf '%s\n' "${apply_roots[@]}" "${skip_roots[@]}" | sort)
+          if ! diff <(echo "$found") <(echo "$expected"); then
+            echo "::error::a root with a backend is in neither APPLY_ROOTS nor SKIP_ROOTS, or the reverse"
+            exit 1
+          fi
+      - name: apply the persistent roots in order
+        run: |
+          read -ra apply_roots <<< "$APPLY_ROOTS"
+          for dir in "${apply_roots[@]}"; do
+            echo "::group::apply $dir"
+            (cd "$dir" && terraform init -input=false && terraform apply -input=false -auto-approve)
+            echo "::endgroup::"
+          done
