@@ -59,7 +59,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   classified. `.github/actionlint.yaml` declares the custom runner label. ADR-0015 and the
   `github-runner` runbook.
 - The plan workflow passes a plan-only placeholder for the runner's registration token.
-
+- `ansible/`: pinned control-node dependencies (`ansible-core` 2.21.5) and a first playbook
+  (`playbooks/first.yml`). ADR-0016 (practice target outside the platform network) and the
+  `ansible-control-node` runbook.
 
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no

@@ -1,0 +1,14 @@
+---
+- name: First playbook - show the OS and make one idempotent change
+  hosts: all           # every host in the inventory we pass with -i
+  gather_facts: true   # collects facts about the host first (OS, IPs, and so on)
+  tasks:
+    - name: Show the OS the target reports
+      ansible.builtin.debug:
+        msg: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Ensure the test directory exists
+      ansible.builtin.file:
+        path: /tmp/ansible-day1   # /tmp is writable without sudo, so no privilege escalation yet
+        state: directory          # the desired state, not a command
+        mode: "0755"
