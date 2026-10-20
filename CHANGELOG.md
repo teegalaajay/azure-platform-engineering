@@ -62,6 +62,11 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `ansible/`: pinned control-node dependencies (`ansible-core` 2.21.5) and a first playbook
   (`playbooks/first.yml`). ADR-0016 (practice target outside the platform network) and the
   `ansible-control-node` runbook.
+- `ansible/playbooks/web.yml`: installs nginx (`apt` with `cache_valid_time`), ensures it is started
+  and enabled (`service`) and deploys `files/index.html` (`copy`, checksum compared), with
+  `become` set on the play. The target host is chosen by inventory at run time.
+- Runbook `ansible-control-node`: web playbook run and verify steps, first contact with a rebuilt
+  target (host key), troubleshooting by symptom; corrected the SSH key name.
 
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no

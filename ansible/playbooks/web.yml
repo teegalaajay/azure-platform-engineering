@@ -1,0 +1,24 @@
+---
+- name: Web server - install nginx
+  hosts: all
+  gather_facts: true
+  become: true          # what you just proved is needed for apt to write the dpkg lock
+  tasks:
+    - name: Ensure nginx is installed
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+        cache_valid_time: 3600   # seconds; the index is refreshed only if older than this
+    - name: Ensure nginx is started and enabled
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+    - name: Ensure the landing page is deployed
+      ansible.builtin.copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: "0644"

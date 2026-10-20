@@ -1,7 +1,7 @@
-# Runbook: Ansible control node and first playbook
+# Runbook: Ansible control node and playbooks
 
-**Purpose:** Set up the Ansible control node, reach a target over SSH, and run a playbook from `ansible/` (ADR-0016).
-**Owner:** platform-team · **Last validated:** 2026-10-19 (venv build, ping, two-run idempotency check against the sandbox target) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
+**Purpose:** Set up the Ansible control node, reach a target over SSH, and run the playbooks in `ansible/` (ADR-0016): `first.yml` (idempotency check) and `web.yml` (nginx web server).
+**Owner:** platform-team · **Last validated:** 2026-10-20 (venv build, ping, `first.yml` twice, `web.yml` task by task and drift repair against the sandbox target) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
 
 ## 1. Layout
 
@@ -9,8 +9,9 @@
 |---|---|---|
 | Pinned dependencies | `ansible/requirements.txt` | Exact `ansible-core` version; changed only through a PR |
 | Playbooks | `ansible/playbooks/` | Playbooks; the host is chosen by inventory at run time, never in the playbook |
+| Files to deploy | `ansible/playbooks/files/` | Source files for `copy` tasks; a relative `src` is looked up here |
 | Control node | Operator workstation (WSL2 Ubuntu) | Runs `ansible-playbook`; connects to targets over SSH |
-| Target | Sandbox VM from `azure-iac-sandbox` (`w4d1-ansible-target`) | Public IP, SSH allowed only from the operator /32 (ADR-0016) |
+| Target | Sandbox VM from `azure-iac-sandbox` (`w4d1-ansible-target`) | Public IP; SSH (22) and HTTP (80) allowed only from the operator /32 (ADR-0016) |
 
 No inventory file, IP address or key is committed.
 
@@ -25,30 +26,68 @@ ansible --version                           # confirm the pinned ansible-core
 
 ## 3. Load the SSH key
 
-The key has a passphrase, and Ansible cannot prompt for it, so load it into an agent first.
+The key has a passphrase, and Ansible cannot prompt for it, so load it into an agent first. An agent belongs to one shell: every new terminal needs this again.
 
 ```bash
-eval "$(ssh-agent -s)"    # starts an agent for this shell
-ssh-add ~/.ssh/id_ed25519 # asks for the passphrase once
+eval "$(ssh-agent -s)"           # starts an agent for this shell
+ssh-add ~/.ssh/azlab_ed25519     # asks for the passphrase once
 ```
 
-## 4. Check connectivity, then run
+## 4. First contact with a rebuilt target
+
+A rebuilt VM has a new SSH host key. Ansible runs SSH without a terminal, so it cannot answer the "continue connecting?" prompt and fails with `Host key verification failed`. Connect once by hand and accept the key:
 
 ```bash
-ansible all -i "<target-ip>," -u azureuser -m ping                       # ad-hoc reachability test
-ansible-playbook -i "<target-ip>," -u azureuser ansible/playbooks/first.yml   # run the playbook
+IP=$(terraform output -raw public_ip)   # run in the sandbox target folder
+ssh azureuser@"$IP" hostname            # type yes when asked; the key is stored in known_hosts
 ```
 
-Run the playbook twice. First run: `changed=1`. Second run: `changed=0`. A second run that still changes something is not idempotent and must be fixed.
+This is trust on first use: the first connection trusts whatever answers on that IP, so an impostor on the path at that moment would go undetected. That is accepted for a throwaway VM created seconds earlier. Do not disable host key checking (`ANSIBLE_HOST_KEY_CHECKING=False`): that also hides a changed key on every later connection.
 
-## 5. Troubleshooting
+## 5. Check connectivity, then run
+
+```bash
+ansible all -i "$IP," -u azureuser -m ping                                  # ad-hoc reachability test
+ansible-playbook -i "$IP," -u azureuser ansible/playbooks/first.yml        # idempotency check
+ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml --check --diff   # preview, writes nothing
+ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml          # apply
+```
+
+The trailing comma after the IP makes Ansible read the value as a host list; without it the value is treated as an inventory file name.
+
+`web.yml` installs nginx (`apt`, with `cache_valid_time`), makes sure it is started and enabled (`service`), and deploys `files/index.html` (`copy`, compared by checksum). `become: true` is set on the play because every task changes system state.
+
+Expected results:
+
+- Fresh VM: the `apt` and `copy` tasks report `changed`. The `service` task is expected to report `ok`, because the Ubuntu package starts and enables nginx itself (observed on the 24.04 image). The full first run on a fresh VM has not been observed end to end yet.
+- Second run: `changed=0`. A second run that still changes something is not idempotent and must be fixed.
+- Check mode compares state and writes nothing, and it does not take the package lock, so it can pass without `become`. Only a real run proves privileges.
+
+## 6. Verify on the target, not from Ansible's report
+
+```bash
+ssh azureuser@"$IP" dpkg -s nginx                       # package installed
+ssh azureuser@"$IP" systemctl is-active nginx           # running now
+ssh azureuser@"$IP" systemctl is-enabled nginx          # starts at boot
+curl -m 5 -I http://"$IP"                               # HTTP 200 from nginx
+sha1sum ansible/playbooks/files/index.html              # must equal the next line
+ssh azureuser@"$IP" sha1sum /var/www/html/index.html
+```
+
+Drift repair: if the page is edited on the target, the next run reports `changed=1` and restores the repo version (in `--check --diff`, a `-` line exists only on the target, a `+` line only in the repo file).
+
+## 7. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Permission denied (publickey)` with `ssh_askpass` | Key has a passphrase and no agent holds it | Section 3 |
-| `Connection timed out` | Operator public IP changed; NSG rule allows the old /32 | Update `operator_ip_cidr` in the sandbox and apply |
+| `Permission denied (publickey)` with `ssh_askpass` | Key has a passphrase and no agent holds it (new shell), or the login user is wrong | Section 3; pass `-u azureuser` |
+| `Host key verification failed` with `ssh_askpass` | First contact with a rebuilt VM; no stored host key | Section 4 |
+| `Unable to parse ... as an inventory source` | `-i` value has no trailing comma, so it is read as a file name | Write `-i "$IP,"` |
+| `Could not open lock file /var/lib/dpkg/lock-frontend ... Permission denied`, `rc: 100` | Task ran as `azureuser`; `apt` needs root | Set `become: true` on the play |
+| `curl: (7)` returned at once | Port 80 is open but nothing is listening | Install or start nginx (section 5) |
+| `curl` waits until the timeout |  Expected, not yet reproduced: the NSG drops the packet; the port 80 rule is missing or the operator /32 changed | Apply the sandbox rule `allow-http-operator`; update `operator_ip_cidr` |
 | Interpreter discovery warning | Python path not pinned | Informational for Ubuntu 24.04; pin `ansible_python_interpreter` later in inventory |
 
-## 6. Teardown
+## 8. Teardown
 
 `terraform destroy` in `w4d1-ansible-target` (sandbox repo). The target holds no state worth keeping; the playbooks are the source of truth.
