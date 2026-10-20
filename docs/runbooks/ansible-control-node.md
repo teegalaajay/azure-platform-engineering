@@ -9,7 +9,7 @@
 |---|---|---|
 | Pinned dependencies | `ansible/requirements.txt` | Exact `ansible-core` version; changed only through a PR |
 | Playbooks | `ansible/playbooks/` | Playbooks; the host is chosen by inventory at run time, never in the playbook |
-| Files to deploy | `ansible/playbooks/files/` | Source files for `copy` tasks; a relative `src` is looked up here |
+| Templates | `ansible/playbooks/templates/` | Jinja2 sources for `template` tasks; a relative `src` is looked up here |
 | Control node | Operator workstation (WSL2 Ubuntu) | Runs `ansible-playbook`; connects to targets over SSH |
 | Target | Sandbox VM from `azure-iac-sandbox` (`w4d1-ansible-target`) | Public IP; SSH (22) and HTTP (80) allowed only from the operator /32 (ADR-0016) |
 
@@ -50,12 +50,18 @@ This is trust on first use: the first connection trusts whatever answers on that
 ansible all -i "$IP," -u azureuser -m ping                                  # ad-hoc reachability test
 ansible-playbook -i "$IP," -u azureuser ansible/playbooks/first.yml        # idempotency check
 ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml --check --diff   # preview, writes nothing
+ansible-playbook -i "$IP," ansible/playbooks/web.yml --list-tags                   # labels only, contacts nothing
+ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml --tags content   # one slice; Gathering Facts still runs
 ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml          # apply
 ```
 
 The trailing comma after the IP makes Ansible read the value as a host list; without it the value is treated as an inventory file name.
 
-`web.yml` installs nginx (`apt`, with `cache_valid_time`), makes sure it is started and enabled (`service`), and deploys `files/index.html` (`copy`, compared by checksum). `become: true` is set on the play because every task changes system state.
+`web.yml` installs nginx (`apt`, with `cache_valid_time`), makes sure it is started and enabled (`service`), renders the landing page from `templates/index.html.j2` (`template`) and renders an nginx response-header snippet to `/etc/nginx/conf.d/headers.conf`. `become: true` is set on the play because every task changes system state.
+
+Values come from the play's `vars:` (`web_root`, `web_owner`, `site_title`); `-e name=value` overrides them. A `template` task renders the `.j2` file on the control node, and the checksum comparison is between that rendered text and the file on the target. The snippet task notifies the handler `Reload nginx`, which runs once at the end of the play and only when the snippet changed. `force_handlers: true` makes an already notified handler run even if a later task fails (ADR-0017). Each task has one tag (`packages`, `service`, `content`, `config`); `--tags` selects tasks, and a task that notifies a handler must be selected for the handler to be notified.
+
+Gate before any run, in its own step: `yamllint --strict ansible/` and `ansible-playbook --syntax-check -i "$IP," ansible/playbooks/web.yml`. Neither reads the `.j2` files, so an undefined variable inside a template is found only at run time (see section 7).
 
 Expected results:
 
@@ -70,11 +76,12 @@ ssh azureuser@"$IP" dpkg -s nginx                       # package installed
 ssh azureuser@"$IP" systemctl is-active nginx           # running now
 ssh azureuser@"$IP" systemctl is-enabled nginx          # starts at boot
 curl -m 5 -I http://"$IP"                               # HTTP 200 from nginx
-sha1sum ansible/playbooks/files/index.html              # must equal the next line
-ssh azureuser@"$IP" sha1sum /var/www/html/index.html
+curl -s http://"$IP"/                                   # rendered page, hostname filled in
+curl -sI http://"$IP"/                                  # X-Platform header: present only after nginx reloaded
+ssh azureuser@"$IP" cat /etc/nginx/conf.d/headers.conf  # what is on disk (compare with the header served)
 ```
 
-Drift repair: if the page is edited on the target, the next run reports `changed=1` and restores the repo version (in `--check --diff`, a `-` line exists only on the target, a `+` line only in the repo file).
+Drift repair: if the page is edited on the target, the next run reports `changed=1` and restores the repo version (in `--check --diff`, a `-` line exists only on the target, a `+` line only in the rendered output).
 
 ## 7. Troubleshooting
 
@@ -87,6 +94,8 @@ Drift repair: if the page is edited on the target, the next run reports `changed
 | `curl: (7)` returned at once | Port 80 is open but nothing is listening | Install or start nginx (section 5) |
 | `curl` waits until the timeout |  Expected, not yet reproduced: the NSG drops the packet; the port 80 rule is missing or the operator /32 changed | Apply the sandbox rule `allow-http-operator`; update `operator_ip_cidr` |
 | Interpreter discovery warning | Python path not pinned | Informational for Ubuntu 24.04; pin `ansible_python_interpreter` later in inventory |
+| `'site_owner' is undefined`, `changed: false`, `Origin:` points at a `.j2` file | A template uses a variable that is not defined. Rendering happens on the control node at run time; `--syntax-check` and `yamllint` do not read `.j2` files. Observed also with `--check` | Define the variable or fix the name. Nothing was written to the target (page unchanged, observed) |
+| File on the target has the new value but nginx still serves the old one | A task after the notifying task failed and the handler was skipped; the next run reports `ok` and notifies nothing (observed) | Keep `force_handlers: true` (ADR-0017). To repair a host that is already stale, make the snippet report `changed` again |
 
 ## 8. Teardown
 
