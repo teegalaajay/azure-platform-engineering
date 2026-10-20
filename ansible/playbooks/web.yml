@@ -2,23 +2,45 @@
 - name: Web server - install nginx
   hosts: all
   gather_facts: true
-  become: true          # what you just proved is needed for apt to write the dpkg lock
+  become: true
+  force_handlers: true
+  vars:
+    web_root: /var/www/html
+    web_owner: root
+    site_title: Sandbox Reference Platform
   tasks:
     - name: Ensure nginx is installed
       ansible.builtin.apt:
         name: nginx
         state: present
         update_cache: true
-        cache_valid_time: 3600   # seconds; the index is refreshed only if older than this
+        cache_valid_time: 3600
+      tags: [packages]
     - name: Ensure nginx is started and enabled
       ansible.builtin.service:
         name: nginx
         state: started
         enabled: true
-    - name: Ensure the landing page is deployed
-      ansible.builtin.copy:
-        src: index.html
-        dest: /var/www/html/index.html
+      tags: [service]
+    - name: Ensure the landing page is rendered
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: "{{ web_root }}/index.html"
+        owner: "{{ web_owner }}"
+        group: root
+        mode: "0644"
+      tags: [content]
+    - name: Ensure the response header snippet is rendered
+      ansible.builtin.template:
+        src: headers.conf.j2
+        dest: /etc/nginx/conf.d/headers.conf
         owner: root
         group: root
         mode: "0644"
+      notify: Reload nginx
+      tags: [config]
+  handlers:
+    - name: Reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded

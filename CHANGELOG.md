@@ -63,10 +63,16 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   (`playbooks/first.yml`). ADR-0016 (practice target outside the platform network) and the
   `ansible-control-node` runbook.
 - `ansible/playbooks/web.yml`: installs nginx (`apt` with `cache_valid_time`), ensures it is started
-  and enabled (`service`) and deploys `files/index.html` (`copy`, checksum compared), with
-  `become` set on the play. The target host is chosen by inventory at run time.
+  and enabled (`service`), renders the landing page (`templates/index.html.j2`) and an nginx
+  response-header snippet (`templates/headers.conf.j2`) with `template`, and reloads nginx through a
+  handler only when the snippet changed. Values come from play `vars`; every task has a tag;
+  `become` and `force_handlers` are set on the play. The target host is chosen by inventory at
+  run time.
 - Runbook `ansible-control-node`: web playbook run and verify steps, first contact with a rebuilt
   target (host key), troubleshooting by symptom; corrected the SSH key name.
+- Runbook `ansible-control-node`: variables and templates, handlers, tags, the lint and syntax
+  gate, and two new symptom rows (undefined template variable; file new but service stale).
+- ADR-0017 (handler failure policy: `force_handlers`).
 
 ### Changed
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no
