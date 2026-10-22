@@ -1,0 +1,8 @@
+---
+- name: Web server - install nginx
+  hosts: all
+  gather_facts: true
+  become: true
+  force_handlers: true
+  roles:
+    - web
