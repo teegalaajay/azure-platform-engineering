@@ -1,0 +1,7 @@
+---
+# Directory that holds the rendered landing page.
+web_root: /var/www/html
+# Owner of the rendered landing page (the group is always root).
+web_owner: root
+# Heading on the landing page and value of the X-Platform response header.
+site_title: Sandbox Reference Platform

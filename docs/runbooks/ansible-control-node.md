@@ -1,15 +1,16 @@
 # Runbook: Ansible control node and playbooks
 
-**Purpose:** Set up the Ansible control node, reach a target over SSH, and run the playbooks in `ansible/` (ADR-0016): `first.yml` (idempotency check) and `web.yml` (nginx web server).
-**Owner:** platform-team · **Last validated:** 2026-10-20 (venv build, ping, `first.yml` twice, `web.yml` task by task and drift repair against the sandbox target) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
+**Purpose:** Set up the Ansible control node, reach a target over SSH, and run the code in `ansible/` (ADR-0016, ADR-0018): `playbooks/first.yml` (idempotency check) and `site.yml`, which calls the role `roles/web` (nginx web server).
+**Owner:** platform-team · **Last validated:** 2026-10-22 (role-based `site.yml` against the sandbox target: baseline run, variable precedence, template search order, tag slice) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
 
 ## 1. Layout
 
 | Piece | Where | What it does |
 |---|---|---|
 | Pinned dependencies | `ansible/requirements.txt` | Exact `ansible-core` version; changed only through a PR |
-| Playbooks | `ansible/playbooks/` | Playbooks; the host is chosen by inventory at run time, never in the playbook |
-| Templates | `ansible/playbooks/templates/` | Jinja2 sources for `template` tasks; a relative `src` is looked up here |
+| Entry playbook | `ansible/site.yml` | Sets the target (`hosts: all`), `become`, fact gathering and `force_handlers`, then calls the role. It sits next to `roles/` on purpose (section 5) |
+| Standalone playbooks | `ansible/playbooks/` | `first.yml`; the host is chosen by inventory at run time, never in the playbook |
+| Role | `ansible/roles/web/` | `tasks/main.yml`, `handlers/main.yml`, `templates/`, `defaults/main.yml`, `meta/main.yml`, `README.md`; no `vars/` (ADR-0018) |
 | Control node | Operator workstation (WSL2 Ubuntu) | Runs `ansible-playbook`; connects to targets over SSH |
 | Target | Sandbox VM from `azure-iac-sandbox` (`w4d1-ansible-target`) | Public IP; SSH (22) and HTTP (80) allowed only from the operator /32 (ADR-0016) |
 
@@ -49,25 +50,32 @@ This is trust on first use: the first connection trusts whatever answers on that
 ```bash
 ansible all -i "$IP," -u azureuser -m ping                                  # ad-hoc reachability test
 ansible-playbook -i "$IP," -u azureuser ansible/playbooks/first.yml        # idempotency check
-ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml --check --diff   # preview, writes nothing
-ansible-playbook -i "$IP," ansible/playbooks/web.yml --list-tags                   # labels only, contacts nothing
-ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml --tags content   # one slice; Gathering Facts still runs
-ansible-playbook -i "$IP," -u azureuser ansible/playbooks/web.yml          # apply
+ansible-playbook -i "$IP," -u azureuser ansible/site.yml --check --diff    # preview, writes nothing
+ansible-playbook -i "$IP," ansible/site.yml --list-tags                    # labels only, contacts nothing
+ansible-playbook -i "$IP," ansible/site.yml --list-tasks                   # tasks with their tags, contacts nothing
+ansible-playbook -i "$IP," -u azureuser ansible/site.yml --tags content    # one slice; Gathering Facts still runs
+ansible-playbook -i "$IP," -u azureuser ansible/site.yml                   # apply
 ```
 
 The trailing comma after the IP makes Ansible read the value as a host list; without it the value is treated as an inventory file name.
 
-`web.yml` installs nginx (`apt`, with `cache_valid_time`), makes sure it is started and enabled (`service`), renders the landing page from `templates/index.html.j2` (`template`) and renders an nginx response-header snippet to `/etc/nginx/conf.d/headers.conf`. `become: true` is set on the play because every task changes system state.
+`site.yml` calls the role `web`, which installs nginx (`apt`, with `cache_valid_time`), makes sure it is started and enabled (`service`), renders the landing page from `templates/index.html.j2` (`template`) and renders an nginx response-header snippet to `/etc/nginx/conf.d/headers.conf`. `become: true` is set on the play because every task changes system state. Ansible finds the role because `roles/` sits next to the playbook that runs. A play kept in `ansible/playbooks/` did not find it (observed: `The role 'web' was not found`, with the five searched paths listed); `yamllint` passed on that file, and only `--syntax-check` showed the error.
 
-Values come from the play's `vars:` (`web_root`, `web_owner`, `site_title`); `-e name=value` overrides them. A `template` task renders the `.j2` file on the control node, and the checksum comparison is between that rendered text and the file on the target. The snippet task notifies the handler `Reload nginx`, which runs once at the end of the play and only when the snippet changed. `force_handlers: true` makes an already notified handler run even if a later task fails (ADR-0017). Each task has one tag (`packages`, `service`, `content`, `config`); `--tags` selects tasks, and a task that notifies a handler must be selected for the handler to be notified.
+The snippet task notifies the handler `Reload nginx`, which runs once at the end of the play and only when the snippet changed. `force_handlers: true` is set on the play and makes an already notified handler run even if a later task fails (ADR-0017). Each task has one tag (`packages`, `service`, `content`, `config`); the role name is not a tag (observed in `--list-tags`). `--tags` selects tasks, and a task that notifies a handler must be selected for the handler to be notified: `--tags content` ran the page task and no handler (observed, `ok=2 changed=1`).
 
-Gate before any run, in its own step: `yamllint --strict ansible/` and `ansible-playbook --syntax-check -i "$IP," ansible/playbooks/web.yml`. Neither reads the `.j2` files, so an undefined variable inside a template is found only at run time (see section 7).
+Gate before any run, in its own step: `yamllint --strict ansible/` and `ansible-playbook --syntax-check -i "$IP," ansible/site.yml`. Neither reads the `.j2` files, so an undefined variable inside a template is found only at run time (see section 7).
 
 Expected results:
 
-- Fresh VM: the `apt` and `copy` tasks report `changed`. The `service` task is expected to report `ok`, because the Ubuntu package starts and enables nginx itself (observed on the 24.04 image). The full first run on a fresh VM has not been observed end to end yet.
-- Second run: `changed=0`. A second run that still changes something is not idempotent and must be fixed.
+- Fresh VM: the `apt` and both `template` tasks report `changed`, and the handler runs once. The `service` task is expected to report `ok`, because the Ubuntu package starts and enables nginx itself (observed on the 24.04 image).
+- Second run: `changed=0`, `ok=5`. A second run that still changes something is not idempotent and must be fixed.
 - Check mode compares state and writes nothing, and it does not take the package lock, so it can pass without `become`. Only a real run proves privileges.
+
+## 5a. Variables and precedence
+
+The role's settings are in `roles/web/defaults/main.yml`: `web_root`, `web_owner`, `site_title`. They have the lowest precedence, so any caller can override them. Observed with `site_title` set at four levels, the template received them in this order, lowest to highest: role `defaults/main.yml`, play `vars`, role `vars/main.yml`, `-e`. Consequence: a variable placed in a role's `vars/main.yml` would be ignored silently when a play sets it in `vars:`, which is why the role has no `vars/` directory (ADR-0018). The role name `web` also exists as a public Galaxy role: `ansible-galaxy role info web` printed that other record next to the local metadata (observed). Do not install roles by bare name.
+
+A `template` task inside a role looks for its source in this order (observed from the error message when the role's `templates/` was hidden): `roles/web/templates/`, `roles/web/`, `roles/web/tasks/templates/`, `roles/web/tasks/`, `ansible/templates/`, `ansible/`. A file placed in `ansible/templates/` could therefore satisfy the task in place of a missing role file (reasoned from the list, not run).
 
 ## 6. Verify on the target, not from Ansible's report
 
@@ -96,7 +104,10 @@ Drift repair: if the page is edited on the target, the next run reports `changed
 | Interpreter discovery warning | Python path not pinned | Informational for Ubuntu 24.04; pin `ansible_python_interpreter` later in inventory |
 | `'site_owner' is undefined`, `changed: false`, `Origin:` points at a `.j2` file | A template uses a variable that is not defined. Rendering happens on the control node at run time; `--syntax-check` and `yamllint` do not read `.j2` files. Observed also with `--check` | Define the variable or fix the name. Nothing was written to the target (page unchanged, observed) |
 | File on the target has the new value but nginx still serves the old one | A task after the notifying task failed and the handler was skipped; the next run reports `ok` and notifies nothing (observed) | Keep `force_handlers: true` (ADR-0017). To repair a host that is already stale, make the snippet report `changed` again |
+| `The role 'web' was not found in: ...` (observed) | The playbook is not next to `roles/` and no `roles_path` points at it | Run `ansible/site.yml`; keep entry playbooks in `ansible/` |
+| `Could not find or access 'index.html.j2'` followed by a `Searched in:` list (observed) | The template is missing from every place on the list in section 5a | Put the file in `roles/web/templates/` |
+| A variable set in a play's `vars:` has no effect on the role | The variable is also defined in the role's `vars/main.yml`, which outranks play `vars` (observed order, section 5a) | Move it to `defaults/main.yml`, or pass it with `-e` |
 
 ## 8. Teardown
 
-`terraform destroy` in `w4d1-ansible-target` (sandbox repo). The target holds no state worth keeping; the playbooks are the source of truth.
+`terraform destroy` in `w4d1-ansible-target` (sandbox repo). The target holds no state worth keeping; the playbooks and the role are the source of truth.

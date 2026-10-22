@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  # Lowercase identifiers: Galaxy builds "namespace.role_name" from these two keys.
+  namespace: teegalaajay
+  role_name: web
+  author: teegalaajay
+  description: Installs nginx and renders the landing page and response header snippet.
+  license: MIT
+  # Tested floor: the control node is pinned to ansible-core 2.21.x (ansible/requirements.txt).
+  min_ansible_version: "2.21"
+  galaxy_tags:
+    - nginx
+    - web
+
+dependencies: []

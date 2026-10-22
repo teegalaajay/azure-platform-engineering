@@ -73,8 +73,19 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Runbook `ansible-control-node`: variables and templates, handlers, tags, the lint and syntax
   gate, and two new symptom rows (undefined template variable; file new but service stale).
 - ADR-0017 (handler failure policy: `force_handlers`).
+- `ansible/roles/web`: the nginx configuration as a role (tasks, handler `Reload nginx`, templates,
+  `defaults/main.yml` with `web_root`, `web_owner` and `site_title`, Galaxy metadata
+  `teegalaajay.web`, MIT). The role has no `vars/` directory.
+- `ansible/site.yml`: entry playbook beside `roles/`; it sets the target, `become`, fact gathering
+  and `force_handlers`, and calls the role.
+- ADR-0018 (role layout, entry playbook, variable policy, observed precedence order).
+- Runbook `ansible-control-node`: role layout, `site.yml` commands, variable precedence, the
+  template search order, and symptom rows for a missing role and a missing template.
 
 ### Changed
+- `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
+  role; `ansible/playbooks/templates/` removed (the templates now live in the role). Run
+  `ansible-playbook ansible/site.yml` instead of `ansible/playbooks/web.yml`.
 - `modules/network`: subnets set `default_outbound_access_enabled = false` (private subnets, no
   implicit outbound IP). In-place update on all five foundation subnets, no replacement.
   ADR-0007 records the egress decision.
