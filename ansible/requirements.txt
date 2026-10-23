@@ -1,2 +1,3 @@
 # Control-node Python dependencies. Exact pins; change only through a PR.
 ansible-core==2.21.5
+-r requirements-azure.txt

@@ -81,6 +81,11 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0018 (role layout, entry playbook, variable policy, observed precedence order).
 - Runbook `ansible-control-node`: role layout, `site.yml` commands, variable precedence, the
   template search order, and symptom rows for a missing role and a missing template.
+- Azure dynamic inventory: `ansible/requirements.yml` (`azure.azcollection` 4.1.0),
+  `ansible/requirements-azure.txt` and `ansible/constraints.txt` (locked Python dependencies),
+  `ansible/inventory/sandbox.azure_rm.yml` (`auth_source: cli`, `compose`, `keyed_groups`).
+- ADR-0019 (Azure dynamic inventory, dependency pinning, inventory identity, observed failure
+  behaviour) and runbook `ansible-control-node` section 5b with new symptom rows.
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
