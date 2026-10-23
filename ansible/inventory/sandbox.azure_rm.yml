@@ -1,0 +1,17 @@
+---
+# Azure dynamic inventory for the sandbox practice target (ADR-0016, ADR-0019).
+# Holds the query only: no hosts, IP addresses or credentials.
+plugin: azure.azcollection.azure_rm   # fully qualified; must be the first key the plugin checks
+auth_source: cli                      # operator's az login cache, explicit (not auto); ADR-0019
+include_vm_resource_groups:
+  - rg-w4d1-ansible-target            # scope: list VMs in this RG only, not the whole subscription
+compose:
+  ansible_host: public_ipv4_address | first   # explicit: sandbox is reached over its public IP (ADR-0016)
+  ansible_user: "'azureuser'"                 # a string literal: inner quotes, because values are Jinja expressions
+keyed_groups:
+  - key: tags.environment   # exists on the VM
+    prefix: env
+    separator: "_"
+  - key: tags.role | default('unset')
+    prefix: role
+    separator: "_"

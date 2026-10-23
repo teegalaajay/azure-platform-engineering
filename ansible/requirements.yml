@@ -1,0 +1,7 @@
+---
+# Control-node Ansible collections. Exact pins; change only through a PR.
+# Python dependencies for these collections are pinned in requirements.txt.
+collections:
+  - name: azure.azcollection   # azure_rm inventory plugin and azure_rm_* modules
+    version: "==4.1.0"         # exact pin; a bare 4.1.0 also works, == makes the intent explicit
+    source: https://galaxy.ansible.com   # pin the server too; no fallback to another Galaxy
