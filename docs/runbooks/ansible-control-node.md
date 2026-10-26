@@ -106,6 +106,43 @@ Rules:
 - `keyed_groups` with a key missing on the VM needs a default (`tags.role | default('unset')`), otherwise it prints an `[ERROR]`.
 - The exit code does not report most inventory problems. After every run, read the screen for `[WARNING]` and `[ERROR]` lines and check that the recap lists a host. In automation set `ANSIBLE_INVENTORY_UNPARSED_FAILED=true`.
 
+## 5c. Ansible Vault (ADR-0020)
+
+The vault password is a Key Vault secret named `ansible-vault-<label>` in `kv-plat-shared-at01`. Ansible fetches it at run time through `ansible/scripts/vault-pass-client.sh`, configured in the root `ansible.cfg`. The target never receives the password or the ciphertext; it receives the decrypted values a task uses. The current label is `platform2`.
+
+Day to day (run from the repository root, because `ansible.cfg` is read from the current directory):
+
+```bash
+ansible-config dump --only-changed | grep -i vault   # each setting must show the path of ansible.cfg
+ansible-vault create ansible/group_vars/<group>/vault.yml   # new secret file; never writes plaintext to a normal file
+ansible-vault edit ansible/group_vars/<group>/vault.yml     # change a value; an unchanged save leaves the file identical
+ansible-vault view ansible/group_vars/<group>/vault.yml
+```
+
+Rules:
+
+- Pattern: `vars.yml` is plain and holds `name: "{{ vault_name }}"`; `vault.yml` is encrypted and holds the `vault_*` values. Inline `encrypt_string` only for isolated values (it is not rekeyed).
+- Never decrypt then encrypt a file to "reformat" it: the salt is random, so the whole file changes (observed). Use `edit`.
+- Pass values to `encrypt_string` on stdin (`--stdin-name`), never as an argument.
+- Tasks that handle a vaulted value need `no_log: true`; `debug` prints decrypted values (observed).
+- The script must stay executable (`100755`). Without the bit Ansible reads the script text as the password and `encrypt_string` succeeds silently (observed).
+
+Create a new password (the value is never printed):
+
+```bash
+openssl rand -base64 32 | tr -d '\n' | az keyvault secret set --vault-name kv-plat-shared-at01 --name ansible-vault-<label> --file /dev/stdin --query "{name:name, enabled:attributes.enabled}" -o json
+```
+
+Rotate (observed end to end on 2026-10-26 with a demo file; the new label is `platform3` for the next rotation):
+
+1. Create the new secret as above. Add the label to the `case` allow-list in the script.
+2. In `ansible.cfg` list both labels in `vault_identity_list` and set `vault_encrypt_identity` to the new one.
+3. `ansible-vault rekey --new-vault-id <new>@ansible/scripts/vault-pass-client.sh <file>` for every fully encrypted file.
+4. For every inline value: cut the blob out of the YAML, remove the indent, `ansible-vault decrypt --output - <blob> | ansible-vault encrypt_string --stdin-name <name>`, put the result back. `rekey` refuses these files (`Input is not vault encrypted data`).
+5. Verify: every file opens, and the header of each shows the new label.
+6. Remove the old label from `ansible.cfg` and the allow-list. Disable the old secret: `az keyvault secret set-attributes --vault-name kv-plat-shared-at01 --name ansible-vault-<old> --enabled false`. This is a manual change outside Terraform. Do not delete it.
+7. Old ciphertext in Git history still opens with the old password. If the old password may have leaked, rotate the underlying secrets as well.
+
 ## 6. Verify on the target, not from Ansible's report
 
 ```bash
@@ -143,6 +180,12 @@ Drift repair: if the page is edited on the target, the next run reports `changed
 | `skipping: no hosts matched` and `exit=0` | The play's `hosts:` names a group that does not exist (observed) | Check the group with `--graph`; in automation require a host in the recap |
 | `no hosts to target`, `exit=1` | `--limit` left nothing (observed) | Check the group name |
 | Inventory works from a terminal but not in a new shell or CI | The plugin needs a live `az login` and the venv's SDK; neither exists there | Log in; or use `msi` once the agent exists (ADR-0019) |
+| `Vault password client script ... returned non-zero (1) ... Please run 'az login'` (observed) | The script could not get a token: no `az login` in this shell (here an empty `AZURE_CONFIG_DIR`). Ansible stops and nothing is encrypted | `az login`; check `az account show` |
+| `Forbidden ... SecretDisabled` (observed on a direct `az` call) | The vault-id's Key Vault secret has been disabled, normally by a rotation | Use the current label; re-enable only deliberately |
+| `unknown vault-id: <label>` and exit 2 | The label in the file header or `ansible.cfg` is not in the script's allow-list | Add it through a reviewed change; check for a mistyped label |
+| `Decryption failed (no vault secrets were found that could decrypt)` (observed) | No loaded password matches the file: label not loaded, label retired, or the file was encrypted while the script was not executable | Compare the header label with `ansible.cfg`; `ls -l ansible/scripts/vault-pass-client.sh`; re-encrypt from the plaintext source |
+| `encrypt_string` succeeds but `-vvvv` shows no "client script" line (observed) | The script lost its executable bit; Ansible used its text as the password | `chmod +x`, `git add`, and re-encrypt everything made while the bit was off |
+| `Input is not vault encrypted data` from `rekey` (observed) | The file is plain YAML with inline `!vault` values; `rekey` needs a fully encrypted file and leaves this one unchanged | Re-encrypt each inline value by hand (section 5c, rotate step 4) |
 
 ## 8. Teardown
 

@@ -33,3 +33,12 @@ repos:
     rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
       - id: yamllint
+
+  - repo: local
+    hooks:
+      - id: ansible-vault-encrypted
+        name: vault files must be encrypted
+        language: pygrep
+        entry: '^\$ANSIBLE_VAULT;'
+        args: [--negate]
+        files: (^|/)vault[^/]*\.ya?ml$

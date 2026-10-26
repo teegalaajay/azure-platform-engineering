@@ -86,6 +86,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   `ansible/inventory/sandbox.azure_rm.yml` (`auth_source: cli`, `compose`, `keyed_groups`).
 - ADR-0019 (Azure dynamic inventory, dependency pinning, inventory identity, observed failure
   behaviour) and runbook `ansible-control-node` section 5b with new symptom rows.
+- Ansible Vault strategy (ADR-0020): vault password in Key Vault (`ansible-vault-<label>`), client
+  script `ansible/scripts/vault-pass-client.sh` with a label allow-list, root `ansible.cfg`
+  (`vault_identity_list`, `vault_encrypt_identity`, `vault_id_match`), `ansible-vault-encrypted`
+  pre-commit hook, rotation procedure and six troubleshooting rows in the Ansible runbook (5c).
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
