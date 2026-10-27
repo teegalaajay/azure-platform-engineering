@@ -42,3 +42,9 @@ repos:
         entry: '^\$ANSIBLE_VAULT;'
         args: [--negate]
         files: (^|/)vault[^/]*\.ya?ml$
+      - id: ansible-lint
+        name: ansible-lint (production profile, venv copy)
+        language: system
+        entry: ansible-lint
+        pass_filenames: false
+        files: ^(ansible/|\.ansible-lint$|ansible\.cfg$)
