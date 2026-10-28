@@ -18,3 +18,18 @@ steps:
         set -euo pipefail
         az account show --query "{subscription:name, userName:user.name, userType:user.type}" -o table
         az group list --query "[].name" -o tsv
+  - task: AzureCLI@2            # second step: a write attempt that Reader must refuse; green means it was denied
+    displayName: Attempt a write (must be denied)
+    inputs:
+      azureSubscription: sc-azure-plan-shared
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set +e
+        az group create --name rg-ado-authcheck-deny --location eastus2 --only-show-errors > /tmp/write-attempt.log 2>&1
+        rc=$?
+        set -e
+        echo "write attempt exit code: ${rc}"
+        cat /tmp/write-attempt.log
+        if [ "${rc}" -eq 0 ]; then echo "UNEXPECTED: the write succeeded"; exit 1; fi
+        echo "write denied as expected"
