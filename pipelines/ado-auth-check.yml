@@ -1,0 +1,20 @@
+# Proves that an Azure DevOps run can authenticate to Azure as app-ado-plan-shared through workload identity
+# federation (ADR-0022). Read-only on purpose: it prints and lists, it changes nothing in Azure.
+trigger: none                   # never starts from a push; only a person starts it
+pr: none                        # never starts from a pull request (matters because the repo is public)
+
+pool:
+  vmImage: ubuntu-latest        # fresh Microsoft-hosted machine for the job, deleted afterwards
+
+steps:
+  - checkout: none              # the repo is not needed; skipping it keeps this run off the GitHub connection
+  - task: AzureCLI@2            # signs in to Azure with the service connection's federated token, then runs the script
+    displayName: Show which identity Azure sees
+    inputs:
+      azureSubscription: sc-azure-plan-shared   # the service connection NAME; the file holds no credential
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        az account show --query "{subscription:name, userName:user.name, userType:user.type}" -o table
+        az group list --query "[].name" -o tsv
