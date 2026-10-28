@@ -1,0 +1,9 @@
+---
+# Strictest profile: the role and playbooks are meant to be shared, so lint holds them to
+# the production standard. A violation makes ansible-lint exit 2, which fails a hook or CI step.
+profile: production
+
+# Scope: only the ansible/ tree is Ansible content. GitHub workflow files are recognised by
+# ansible-lint and would be linted too; they have their own gates (yamllint, actionlint).
+exclude_paths:
+  - .github/

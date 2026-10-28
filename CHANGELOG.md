@@ -90,6 +90,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   script `ansible/scripts/vault-pass-client.sh` with a label allow-list, root `ansible.cfg`
   (`vault_identity_list`, `vault_encrypt_identity`, `vault_id_match`), `ansible-vault-encrypted`
   pre-commit hook, rotation procedure and six troubleshooting rows in the Ansible runbook (5c).
+- ansible-lint 26.10.1 and Molecule 26.10.0, pinned in `ansible/requirements.txt` with `ansible/constraints.txt` regenerated; `.ansible-lint` (profile `production`, `.github/` excluded) and a local `ansible-lint` pre-commit hook that runs the venv's copy.
+- Molecule scenario `ansible/roles/web/molecule/default/`: test sequence syntax, create, converge, idempotence, verify, destroy against the sandbox VM (Terraform owns the VM; the address comes from `MOLECULE_TARGET_ADDRESS`; no address committed). `verify.yml` asserts the package, service, landing page, `X-Platform` header, file owner and mode, and `nginx -t`. Guard plays fail the run if the inventory has no host.
+- ADR-0021 (ansible-lint and Molecule, with the observed behaviour) and runbook `ansible-control-node` section 5d with new troubleshooting rows.
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
@@ -113,6 +116,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   inline `-d relaxed`, so the hook and CI share one configuration.
 - `bootstrap/github-repo-settings.sh`: ruleset `protect-main` now requires the `validate-gate`
   check from the GitHub Actions app, with the branch-up-to-date policy.
+- **BREAKING** `ansible/roles/web`: variable `site_title` renamed to `web_site_title` (ansible-lint `var-naming[no-role-prefix]`). Callers that pass `site_title` must pass `web_site_title`. No caller exists in this repository. ADR-0018's deferral is reversed (ADR-0021).
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

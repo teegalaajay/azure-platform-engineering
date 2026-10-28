@@ -1,0 +1,30 @@
+---
+# Terraform owns the VM (ADR-0016, ADR-0021). This play creates nothing in Azure: it reads the
+# target address from the environment and writes the instance config that Molecule reads.
+- name: Create
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Require the target address from the environment
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'MOLECULE_TARGET_ADDRESS') | length > 0
+        fail_msg: Set MOLECULE_TARGET_ADDRESS to the public_ip output of w4d1-ansible-target.
+        quiet: true
+
+    - name: Write the instance config Molecule reads
+      ansible.builtin.copy:
+        content: |
+          # Molecule managed
+
+          {{ [instance_conf] | to_json | from_json | to_yaml }}
+        dest: "{{ molecule_instance_config }}"
+        mode: "0600"
+      vars:
+        instance_conf:
+          instance: instance
+          address: "{{ lookup('ansible.builtin.env', 'MOLECULE_TARGET_ADDRESS') }}"
+          user: azureuser
+          port: 22
+          identity_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/azlab_ed25519"

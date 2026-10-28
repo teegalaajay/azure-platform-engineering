@@ -1,7 +1,7 @@
 # Runbook: Ansible control node and playbooks
 
 **Purpose:** Set up the Ansible control node, reach a target over SSH, and run the code in `ansible/` (ADR-0016, ADR-0018, ADR-0019): `playbooks/first.yml` (idempotency check) and `site.yml`, which calls the role `roles/web` (nginx web server). Hosts can be given inline (`-i "$IP,"`) or found in Azure by the dynamic inventory (section 5b).
-**Owner:** platform-team · **Last validated:** 2026-10-22 (role-based `site.yml` against the sandbox target: baseline run, variable precedence, template search order, tag slice; dynamic inventory: `compose`, `keyed_groups`, empty-match and unparsed-source behaviour) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
+**Owner:** platform-team · **Last validated:** 2026-10-27 (ansible-lint production profile on the whole ansible/ tree; Molecule default scenario against the sandbox VM: converge, idempotence, verify, destroy, deliberate failure; role-based `site.yml` against the sandbox target: baseline run, variable precedence, template search order, tag slice; dynamic inventory: `compose`, `keyed_groups`, empty-match and unparsed-source behaviour) · **Persistent:** no (the control node is the operator workstation; the target VM is destroyed after each session)
 
 ## 1. Layout
 
@@ -15,6 +15,8 @@
 | Entry playbook | `ansible/site.yml` | Sets the target (`hosts: all`), `become`, fact gathering and `force_handlers`, then calls the role. It sits next to `roles/` on purpose (section 5) |
 | Standalone playbooks | `ansible/playbooks/` | `first.yml`; the host is chosen by inventory at run time, never in the playbook |
 | Role | `ansible/roles/web/` | `tasks/main.yml`, `handlers/main.yml`, `templates/`, `defaults/main.yml`, `meta/main.yml`, `README.md`; no `vars/` (ADR-0018) |
+| Lint config | `.ansible-lint` (repository root) | Profile `production`; `exclude_paths: [.github/]` (ADR-0021) |
+| Role test | `ansible/roles/web/molecule/default/` | Molecule scenario: `molecule.yml`, `create.yml`, `converge.yml`, `verify.yml`, `destroy.yml`; Terraform owns the target VM (ADR-0021) |
 | Control node | Operator workstation (WSL2 Ubuntu) | Runs `ansible-playbook`; connects to targets over SSH |
 | Target | Sandbox VM from `azure-iac-sandbox` (`w4d1-ansible-target`) | Public IP; SSH (22) and HTTP (80) allowed only from the operator /32 (ADR-0016) |
 
@@ -82,7 +84,7 @@ Expected results:
 
 ## 5a. Variables and precedence
 
-The role's settings are in `roles/web/defaults/main.yml`: `web_root`, `web_owner`, `site_title`. They have the lowest precedence, so any caller can override them. Observed with `site_title` set at four levels, the template received them in this order, lowest to highest: role `defaults/main.yml`, play `vars`, role `vars/main.yml`, `-e`. Consequence: a variable placed in a role's `vars/main.yml` would be ignored silently when a play sets it in `vars:`, which is why the role has no `vars/` directory (ADR-0018). The role name `web` also exists as a public Galaxy role: `ansible-galaxy role info web` printed that other record next to the local metadata (observed). Do not install roles by bare name.
+The role's settings are in `roles/web/defaults/main.yml`: `web_root`, `web_owner`, `web_site_title` (renamed from `site_title` on 2026-10-27, ADR-0021). They have the lowest precedence, so any caller can override them. Observed with the variable (then named `site_title`) set at four levels, the template received them in this order, lowest to highest: role `defaults/main.yml`, play `vars`, role `vars/main.yml`, `-e`. Consequence: a variable placed in a role's `vars/main.yml` would be ignored silently when a play sets it in `vars:`, which is why the role has no `vars/` directory (ADR-0018). The role name `web` also exists as a public Galaxy role: `ansible-galaxy role info web` printed that other record next to the local metadata (observed). Do not install roles by bare name.
 
 A `template` task inside a role looks for its source in this order (observed from the error message when the role's `templates/` was hidden): `roles/web/templates/`, `roles/web/`, `roles/web/tasks/templates/`, `roles/web/tasks/`, `ansible/templates/`, `ansible/`. A file placed in `ansible/templates/` could therefore satisfy the task in place of a missing role file (reasoned from the list, not run).
 
@@ -143,6 +145,54 @@ Rotate (observed end to end on 2026-10-26 with a demo file; the new label is `pl
 6. Remove the old label from `ansible.cfg` and the allow-list. Disable the old secret: `az keyvault secret set-attributes --vault-name kv-plat-shared-at01 --name ansible-vault-<old> --enabled false`. This is a manual change outside Terraform. Do not delete it.
 7. Old ciphertext in Git history still opens with the old password. If the old password may have leaked, rotate the underlying secrets as well.
 
+## 5d. Lint and role tests (ADR-0021)
+
+**Lint.** ansible-lint reads the Ansible files and checks them against a rule set; it never connects to a host. It runs at the `production` profile from `.ansible-lint`. Run it from the repository root with the venv active:
+
+```bash
+source ~/.venvs/ansible/bin/activate   # the pinned copy of ansible-lint and Molecule
+ansible-lint                           # exit 0 = pass, exit 2 = at least one violation
+```
+
+The same command runs as the local pre-commit hook `ansible-lint` whenever a file under `ansible/`, `.ansible-lint` or `ansible.cfg` is staged. It runs the venv's copy, so commit from a shell where the venv is active. The hook is a convenience: `--no-verify` skips it, and no CI job runs it yet (ADR-0021).
+
+Lint reads Ansible files and does not look inside `.j2` templates, so a wrong variable name in a template passes lint and fails at the first converge.
+
+**Molecule.** Molecule runs a scenario against a real host: it syntax-checks, converges the role, converges again and fails if anything changed (idempotence), runs `verify.yml`, then runs `destroy.yml`. In this repository Terraform owns the target VM; Molecule never creates or deletes it.
+
+1. Build the target (sandbox repo): compare your public IP with the NSG value, then plan and apply.
+
+```bash
+cd ~/azure-iac-sandbox/w4d1-ansible-target
+test "$(curl -s https://api.ipify.org)/32" = "$TF_VAR_operator_ip_cidr" && echo MATCH || echo DIFFERENT   # must print MATCH
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+2. Give Molecule the address and the key. The address stays in this shell and is never committed.
+
+```bash
+export MOLECULE_TARGET_ADDRESS="$(terraform output -raw public_ip)"   # read by create.yml
+eval "$(ssh-agent -s)"                                                # only if no agent runs in this shell
+ssh-add ~/.ssh/azlab_ed25519
+```
+
+3. Run the scenario from the role directory.
+
+```bash
+cd ~/azure-platform-engineering/ansible/roles/web
+molecule test                  # syntax, create, converge, idempotence, verify, destroy
+molecule converge              # one stage at a time while debugging
+molecule idempotence
+molecule verify
+```
+
+4. Destroy the VM (cost): `terraform destroy` in `w4d1-ansible-target`.
+
+State: Molecule keeps its generated inventory and `instance_config.yml` in `~/.ansible/tmp/molecule.<id>.default/`, outside the repository. `molecule destroy` only clears that file; it does not touch Azure.
+
+A green recap is not enough. Read the task lines: a play that matched no host prints `skipping: no hosts matched` and still returns 0 (the guard play in `converge.yml` and `verify.yml` now fails the run in that case).
+
 ## 6. Verify on the target, not from Ansible's report
 
 ```bash
@@ -186,7 +236,21 @@ Drift repair: if the page is edited on the target, the next run reports `changed
 | `Decryption failed (no vault secrets were found that could decrypt)` (observed) | No loaded password matches the file: label not loaded, label retired, or the file was encrypted while the script was not executable | Compare the header label with `ansible.cfg`; `ls -l ansible/scripts/vault-pass-client.sh`; re-encrypt from the plaintext source |
 | `encrypt_string` succeeds but `-vvvv` shows no "client script" line (observed) | The script lost its executable bit; Ansible used its text as the password | `chmod +x`, `git add`, and re-encrypt everything made while the bit was off |
 | `Input is not vault encrypted data` from `rekey` (observed) | The file is plain YAML with inline `!vault` values; `rekey` needs a fully encrypted file and leaves this one unchanged | Re-encrypt each inline value by hand (section 5c, rotate step 4) |
+| `var-naming[no-role-prefix]` on a `register:` or a default | A variable inside a role (including its `molecule/` files) lacks the `web_` prefix (observed) | Rename it with the prefix; update every use |
+| `fqcn[action-core]` | A builtin module is written without `ansible.builtin.` (observed) | Use the full name |
+| `role-name[path]` | `include_role` given a path (observed) | Use `name: web` and set `ANSIBLE_ROLES_PATH` in `molecule.yml` |
+| `yaml[indentation]: expected 4 but found 5` | A line under a block is indented one space too far (observed) | Indent children exactly 2 deeper than the key |
+| `ansible-lint` reports files under `.github/` | No scope in the config (observed) | `exclude_paths: [.github/]` in `.ansible-lint` |
+| `Additional properties are not allowed ('playbooks' was unexpected)` | `playbooks:` placed at the top level of `molecule.yml` (observed) | Nest it under `ansible:` |
+| `skipping: no hosts matched` and return code 0 in `converge` or `verify` | No `platforms:` entry, so the generated inventory is empty (observed) | Declare `platforms: - name: instance`; the guard play fails the run if it is missing |
+| `The role 'web' was not found in: ...` from `converge` | The role's parent directory is not on the roles search path (observed) | Set `ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..` under `ansible.env` in `molecule.yml` |
+| `Missing roles requirements file`, `Missing playbook` for dependency, cleanup or prepare | Those stages have no files in this scenario (observed) | Informational; per-command sequences in `molecule.yml` list only existing stages |
+| `converge` passes and `verify` fails on an assertion | The role applied but produced the wrong result; the failure names the false condition (observed) | Read `assertion` in the output; fix the role |
+| `Set MOLECULE_TARGET_ADDRESS ...` from `create.yml` (reasoned, not run) | The variable is unset in this shell | Section 5d step 2 |
+| Hook says `ansible-lint` not found (reasoned, not run) | The venv is not active in the shell that runs `git commit` | `source ~/.venvs/ansible/bin/activate` |
 
 ## 8. Teardown
 
 `terraform destroy` in `w4d1-ansible-target` (sandbox repo). The target holds no state worth keeping; the playbooks and the role are the source of truth.
+
+For Molecule runs, `terraform destroy` in `w4d1-ansible-target` removes the VM; `molecule destroy` does not.

@@ -1,0 +1,18 @@
+---
+# Terraform owns the VM (ADR-0016, ADR-0021). Molecule runs destroy at the start and the end of
+# every test, so this play must never touch Azure: it only empties Molecule's own instance config.
+- name: Destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Clear the instance config
+      ansible.builtin.copy:
+        content: |
+          # Molecule managed
+
+          {{ instance_conf | to_json | from_json | to_yaml }}
+        dest: "{{ molecule_instance_config }}"
+        mode: "0600"
+      vars:
+        instance_conf: {}

@@ -18,7 +18,7 @@ All settings are in `defaults/main.yml`, the lowest precedence, so a play, an in
 |---|---|---|
 | `web_root` | `/var/www/html` | Directory that holds the rendered landing page |
 | `web_owner` | `root` | Owner of the landing page (the group is always `root`) |
-| `site_title` | `Sandbox Reference Platform` | Heading on the landing page and value of the `X-Platform` response header |
+| `web_site_title` | `Sandbox Reference Platform` | Heading on the landing page and value of the `X-Platform` response header |
 
 The role has no `vars/main.yml`. A variable there would outrank a caller's play `vars:` and be ignored silently (ADR-0018).
 
@@ -48,7 +48,7 @@ None.
     - web
 ```
 
-Override a setting from the play: `vars: { site_title: Example }`, or from the command line: `-e site_title=Example`.
+Override a setting from the play: `vars: { web_site_title: Example }`, or from the command line: `-e web_site_title=Example`.
 
 ## License
 
