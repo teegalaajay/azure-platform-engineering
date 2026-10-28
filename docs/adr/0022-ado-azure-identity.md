@@ -40,6 +40,14 @@ Observed 2026-10-28 (portal and run logs):
 7. `checkout: none` skipped the Checkout step ("Condition was not met").
 8. The organization has one free Microsoft-hosted parallel job (1,800 minutes a month) for private
    projects and none for public projects.
+9. Renaming the Azure connection to `sc-azure-plan-shared-renamed` left its ID and its subject unchanged
+   in the portal (the last segment of the subject is the connection ID). The pipeline on `main` still
+   named `sc-azure-plan-shared` and was rejected at validation in under 1 second: "references service
+   connection `sc-azure-plan-shared` which could not be found", reported for both AzureCLI steps. No
+   agent was assigned.
+10. With the new name in both steps, the pipeline succeeded from a throwaway branch. No permission banner
+    appeared on the run page, and the federated credential on the app was not edited. After renaming the
+    connection back, the pipeline succeeded from `main`.
 
 ## Options considered
 
@@ -87,8 +95,7 @@ Federation values: (a) pinned in the script; (b) read from the environment at ru
 
 ## Unproven (to test, not assumed)
 
-Whether renaming the Azure connection breaks authentication (the name is not in the subject, observation 2,
-but the YAML refers to the connection by name); the error for a wrong subject; that a fork pull request
+The error for a wrong subject; that a fork pull request
 cannot reach the connection; the managed identity of the ADO agent (Week 5 Day 5); approvals and checks
 on the connection; the app's behaviour against branch protection.
 
