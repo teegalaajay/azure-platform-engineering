@@ -60,6 +60,7 @@ Expect one app, exactly Reader at the subscription, and `ado-sc-azure-plan-share
 | Step 2 log shows `AuthorizationFailed` for `...resourcegroups/write` (observed, expected) | the identity is read-only | none; this is the proof |
 | Wizard opens "Authorize Azure Pipelines (OAuth)" with admin on webhooks (observed) | no GitHub connection exists in the project | cancel; install the GitHub App for one repository first |
 | Service connections list is empty after installing the GitHub App (observed) | the app connection is created when the pipeline is saved | continue the wizard and save |
+| Run is rejected in under 1 second: "references service connection X which could not be found" (observed) | no connection with that exact name is authorized for the pipeline; the observed cause was a rename, and the same text also covers a deleted, disabled or unauthorized connection | compare `azureSubscription:` in the YAML with the name under Project settings, Service connections; fix the name through a PR. The federated credential does not need to change after a rename (observed) |
 | Verify and save fails at sign-in (expected, not yet observed) | the credential on the app does not match the draft's issuer or subject | compare both strings with `az ad app federated-credential list`; rerun the script |
 
 ## 5. Teardown
