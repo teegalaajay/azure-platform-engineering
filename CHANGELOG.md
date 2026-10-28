@@ -93,6 +93,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ansible-lint 26.10.1 and Molecule 26.10.0, pinned in `ansible/requirements.txt` with `ansible/constraints.txt` regenerated; `.ansible-lint` (profile `production`, `.github/` excluded) and a local `ansible-lint` pre-commit hook that runs the venv's copy.
 - Molecule scenario `ansible/roles/web/molecule/default/`: test sequence syntax, create, converge, idempotence, verify, destroy against the sandbox VM (Terraform owns the VM; the address comes from `MOLECULE_TARGET_ADDRESS`; no address committed). `verify.yml` asserts the package, service, landing page, `X-Platform` header, file owner and mode, and `nginx -t`. Guard plays fail the run if the inventory has no host.
 - ADR-0021 (ansible-lint and Molecule, with the observed behaviour) and runbook `ansible-control-node` section 5d with new troubleshooting rows.
+- Azure DevOps identity for Azure: `bootstrap/ado-oidc.sh` (app `app-ado-plan-shared`, Reader on the subscription, federated credential from environment values, no secret), manual workload identity federation service connection, the Azure Pipelines GitHub App on one repository, and the read-only `ado-auth-check` pipeline (`pipelines/ado-auth-check.yml`) with a denied-write step. ADR-0022 and the ado-service-connections runbook.
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
