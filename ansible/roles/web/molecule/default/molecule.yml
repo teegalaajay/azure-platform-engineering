@@ -1,0 +1,42 @@
+---
+# Scenario for the web role. Terraform owns the target VM (ADR-0016, ADR-0021): create.yml only
+# reads its address from the environment and destroy.yml only clears Molecule's own config.
+ansible:
+  cfg:
+    defaults:
+      # The target is a throwaway VM rebuilt with new host keys, reachable only from the operator /32.
+      host_key_checking: false
+    ssh_connection:
+      pipelining: true
+  env:
+    # Lets name: web resolve to this repo's role; the role's parent directory is the only search path.
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --diff
+        - --force-handlers
+  playbooks:
+    create: create.yml
+    converge: converge.yml
+    destroy: destroy.yml
+    verify: verify.yml
+platforms:
+  - name: instance
+scenario:
+  name: default
+  create_sequence:
+    - create
+  converge_sequence:
+    - create
+    - converge
+  destroy_sequence:
+    - destroy
+  test_sequence:
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

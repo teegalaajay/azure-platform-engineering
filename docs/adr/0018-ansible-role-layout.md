@@ -33,6 +33,7 @@
 
 - `ansible-galaxy role info web` printed a record that belongs to a public Galaxy role with the same name, published by someone else, next to the local metadata. Roles here are referenced only from the repository's own `roles/` directory and are never installed from Galaxy. A bare `ansible-galaxy role install web` would fetch the other role.
 - Role variables share one namespace with the whole play. `site_title` has no `web_` prefix and could collide with another role's variable. Renaming it is a breaking change for any caller that passes `-e site_title=...`, so it is deferred.
+- Amended by ADR-0021 (2026-10-27): the variable prefix deferred above is done. `site_title` is now `web_site_title`, after ansible-lint `var-naming[no-role-prefix]` flagged it.
 - Anything placed in `ansible/templates/` is searched before the play fails, so a stale file there can satisfy a role's `template` task and hide a missing role file (reasoned from fact 3; the shadowing itself was not run).
 - The `license: MIT` field names a license the repository does not yet grant: there is no root `LICENSE` file. A follow-up PR adds it.
 - The entry point moved from `ansible/playbooks/web.yml` to `ansible/site.yml`. Commands that use the old path fail with a missing-file error (reasoned). The runbook is updated in the same PR.

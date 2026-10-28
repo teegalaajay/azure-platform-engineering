@@ -1,0 +1,21 @@
+---
+# Applies the role under test with the same play settings as ansible/site.yml.
+- name: Guard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Fail when the inventory has no target host
+      ansible.builtin.assert:
+        that:
+          - groups['all'] | length > 0
+        fail_msg: No target host in the inventory; check platforms in molecule.yml and that create ran.
+        quiet: true
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Apply role under test
+      ansible.builtin.include_role:
+        name: web

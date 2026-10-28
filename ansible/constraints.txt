@@ -93,6 +93,7 @@ click==8.5.0
 colorama==0.4.6
 cryptography==47.0.0
 distro==1.9.0
+enrich==1.2.7
 filelock==4.2.4
 frozenlist==1.8.0
 h11==0.16.0
@@ -109,8 +110,10 @@ jmespath==1.1.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 knack==0.11.0
+markdown-it-py==4.2.0
 MarkupSafe==3.0.4
 marshmallow==3.26.2
+mdurl==0.1.2
 microsoft-kiota-abstractions==1.15.0
 microsoft-kiota-authentication-azure==1.15.0
 microsoft-kiota-http==1.15.0
@@ -119,6 +122,7 @@ microsoft-kiota-serialization-json==1.15.0
 microsoft-kiota-serialization-multipart==1.15.0
 microsoft-kiota-serialization-text==1.15.0
 microsoft-security-utilities-secret-masker==1.0.0b4
+molecule==26.10.0
 msal==1.33.0b1
 msal-extensions==1.2.0
 msgraph-core==1.5.2
@@ -153,6 +157,7 @@ pandas==3.1.0
 pathspec==1.1.1
 pkginfo==1.13.3
 platformdirs==4.13.6
+pluggy==1.7.0
 portalocker==2.10.1
 propcache==0.5.4
 psutil==7.2.2
@@ -170,6 +175,7 @@ referencing==0.37.0
 requests==2.34.2
 requests-oauthlib==2.0.0
 resolvelib==1.2.1
+rich==15.0.0
 rpds-py==2026.9.1
 ruamel.yaml==0.19.1
 six==1.17.0

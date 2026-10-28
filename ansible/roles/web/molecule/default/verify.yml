@@ -1,0 +1,75 @@
+---
+# Asserts the real state of the target after converge. Expected values are written out here on
+# purpose, not read from the role's variables, so a change in the role's behaviour fails the test.
+- name: Guard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Fail when the inventory has no target host
+      ansible.builtin.assert:
+        that:
+          - groups['all'] | length > 0
+        fail_msg: No target host in the inventory; check platforms in molecule.yml and that create ran.
+        quiet: true
+- name: Verify
+  hosts: instance
+  gather_facts: false
+  tasks:
+    - name: Collect installed packages
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Collect services
+      ansible.builtin.service_facts:
+
+    - name: Check nginx is installed, running and enabled at boot
+      ansible.builtin.assert:
+        that:
+          - "'nginx' in ansible_facts.packages"
+          - ansible_facts.services['nginx.service'].state == 'running'
+          - ansible_facts.services['nginx.service'].status == 'enabled'
+        fail_msg: nginx is missing, stopped or not enabled
+        quiet: true
+
+    - name: Request the landing page from the target itself
+      ansible.builtin.uri:
+        url: http://localhost/
+        return_content: true
+      register: web_page
+
+    - name: Check the status code, the heading and the response header
+      ansible.builtin.assert:
+        that:
+          - web_page.status == 200
+          - "'<h1>Sandbox Reference Platform</h1>' in web_page.content"
+          - web_page.x_platform == 'Sandbox Reference Platform v3'
+        fail_msg: the landing page or the X-Platform header is not what the role should produce
+        quiet: true
+
+    - name: Stat the landing page
+      ansible.builtin.stat:
+        path: /var/www/html/index.html
+      register: web_index_file
+
+    - name: Stat the header snippet
+      ansible.builtin.stat:
+        path: /etc/nginx/conf.d/headers.conf
+      register: web_headers_file
+
+    - name: Check both files exist, are owned by root and have mode 0644
+      ansible.builtin.assert:
+        that:
+          - web_index_file.stat.exists
+          - web_index_file.stat.pw_name == 'root'
+          - web_index_file.stat.mode == '0644'
+          - web_headers_file.stat.exists
+          - web_headers_file.stat.pw_name == 'root'
+          - web_headers_file.stat.mode == '0644'
+        fail_msg: a rendered file is missing or has the wrong owner or mode
+        quiet: true
+
+    - name: Test the nginx configuration
+      ansible.builtin.command: nginx -t
+      become: true
+      changed_when: false
