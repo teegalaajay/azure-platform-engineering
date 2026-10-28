@@ -7,7 +7,7 @@ pool:
   vmImage: ubuntu-latest        # fresh Microsoft-hosted machine for the job, deleted afterwards
 
 steps:
-  - checkout: none              # the repo is not needed; skipping it keeps this run off the GitHub connection
+  - checkout: none              # nothing to download; ADO still reads this YAML from GitHub when it queues the run
   - task: AzureCLI@2            # signs in to Azure with the service connection's federated token, then runs the script
     displayName: Show which identity Azure sees
     inputs:
