@@ -90,3 +90,17 @@ variable "custom_data" {
   default     = null
   sensitive   = true
 }
+
+variable "user_assigned_identity_ids" {
+  description = "Resource IDs of user-assigned managed identities to attach to the VM. Empty = no identity (the default, so existing callers are unchanged)."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for id in var.user_assigned_identity_ids :
+      can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.ManagedIdentity/userAssignedIdentities/[^/]+$", id))
+    ])
+    error_message = "Each entry must be a user-assigned managed identity resource ID (/subscriptions/.../providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>)."
+  }
+}

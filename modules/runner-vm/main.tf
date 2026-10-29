@@ -1,15 +1,16 @@
 module "vm" {
   source = "../linux-vm"
 
-  name                = var.name
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  subnet_id           = var.subnet_id
-  size                = var.size
-  zone                = var.zone
-  ssh_public_key      = var.ssh_public_key
-  private_ip_address  = var.private_ip_address
-  tags                = var.tags
+  name                       = var.name
+  resource_group_name        = var.resource_group_name
+  location                   = var.location
+  subnet_id                  = var.subnet_id
+  size                       = var.size
+  zone                       = var.zone
+  ssh_public_key             = var.ssh_public_key
+  private_ip_address         = var.private_ip_address
+  tags                       = var.tags
+  user_assigned_identity_ids = var.user_assigned_identity_ids
 
   # Rendered at plan time; the result is sensitive because registration_token is.
   custom_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
