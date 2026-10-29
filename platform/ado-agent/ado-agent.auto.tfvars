@@ -1,0 +1,11 @@
+environment             = "shared"
+location                = "eastus2"
+data_classification     = "confidential" # the agent can reach the state account and Key Vault paths
+vm_size                 = "Standard_D2als_v6"
+vm_zone                 = "2"          # zones 1 and 3 are restricted for this subscription (2026-10-05)
+private_ip_address      = "10.20.3.11" # snet-mgmt is 10.20.3.0/26; .10 belongs to platform/runner
+agent_pool              = "pool-platform-shared"
+agent_token_secret_name = "ado-agent-pat"
+agent_version           = "5.281.1"
+agent_sha256            = "4a8c23021a081ba2943161a9225f8c3fe0f1e8f3caf96479ab33264b8bbb09d1"
+terraform_version       = "1.16.4"
