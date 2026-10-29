@@ -38,6 +38,10 @@ Observed 2026-10-28 and 2026-10-29 (portal and run logs):
 9. Pull request 30 started run `#20261029.4` by itself ("PR automated", 1 min 1 s, green, on commit `71c8c0c`,
    not the pushed head `ffbea5d`). GitHub lists it as a check named `ado-terraform-validate`; the check link
    shows the organization name and the project ID on the public pull request page.
+10. After the merge, run `#20261029.6` started by itself ("Individual CI" for `main` @ `e34c850`, 1 min 14 s,
+    green). The pipeline's default branch field read `refs/heads/main`.
+11. Pull request 31 changed only files under `docs/`, outside the path filter. No run appeared after
+    `#20261029.6`, and GitHub listed the check `ado-terraform-validate` as skipped (no elapsed time).
 
 ## Options considered
 
@@ -93,13 +97,14 @@ Structure: (a) one job per directory (needs a runtime matrix); (b) one job with 
   OAuth means no connection exists is wrong and is corrected.
 - The check link on a public pull request exposes the organization name and the project ID of a private
   project (identifiers, not credentials); logs and screenshots still need redaction (ADR-0022).
+- GitHub treats a skipped check as passing, so a required `ado-terraform-validate` check would be satisfied
+  by pull requests the filter excludes (reasoned, not tested).
 
 ## Unproven (to test, not assumed)
 
-A fork pull request being skipped (the setting is off; no second GitHub account); a pull request that touches only files outside the filter starting no run (the in-filter case is observation 9);
-whether the path filter on a
+A fork pull request being skipped (the setting is off; no second GitHub account); whether the path filter on a
 pull request looks at the whole pull request or the last push; the content of the PR status comment; the
 image version of the green run; the failure path of the version assert step; the behaviour of `$(...)` text
-inside a script (avoided, not tested); `tflint` on a hosted agent; the pipeline's default branch after the
-merge (set to `main` as a runbook step); an event with a path that does not exist yet
+inside a script (avoided, not tested); `tflint` on a hosted agent; when the pipeline's default branch became
+`main` (it read `refs/heads/main` after the merge); an event with a path that does not exist yet
 (`pipelines/templates/**` exists in the filter only).
