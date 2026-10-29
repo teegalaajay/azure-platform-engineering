@@ -46,5 +46,14 @@ resource "azurerm_linux_virtual_machine" "this" {
     version   = "latest"
   }
 
+  # Attached only when the caller passes identity IDs; an empty list renders no block (existing callers unchanged).
+  dynamic "identity" {
+    for_each = length(var.user_assigned_identity_ids) > 0 ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = var.user_assigned_identity_ids
+    }
+  }
+
   boot_diagnostics {} # Azure-managed storage: serial log and screenshot without a storage account
 }

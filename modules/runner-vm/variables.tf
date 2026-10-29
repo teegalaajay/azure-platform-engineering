@@ -95,3 +95,9 @@ variable "labels" {
   type        = list(string)
   default     = ["platform-apply"]
 }
+
+variable "user_assigned_identity_ids" {
+  description = "Resource IDs of user-assigned managed identities attached to the VM; passed to linux-vm. Empty = no identity."
+  type        = list(string)
+  default     = []
+}

@@ -34,7 +34,7 @@ flowchart LR
       vnet["VNet: snet-app / snet-data / snet-mgmt"]
       kv["Key Vault (RBAC, purge protection)"]
     end
-    runner["Self-hosted runner / ADO agent<br/>snet-mgmt, no managed identity (ADR-0015)"]
+    runner["Self-hosted runner / ADO agent<br/>snet-mgmt: runner without managed identity (ADR-0015), agent with a user-assigned one (ADR-0024)"]
     wl["Workloads (ephemeral)<br/>VMs, storage, AKS"]
   end
   runner --> wl

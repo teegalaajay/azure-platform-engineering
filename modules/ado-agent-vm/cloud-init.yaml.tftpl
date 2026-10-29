@@ -1,0 +1,76 @@
+#cloud-config
+# Rendered by Terraform templatefile(). Dollar-brace is Terraform interpolation, so every
+# shell variable below is written as $NAME without braces.
+# SHARED with modules/runner-vm: from "ARCH=" to "apt-mark hold terraform" must stay identical in both templates.
+write_files:
+  - path: /opt/agent-bootstrap.sh
+    owner: root:root
+    permissions: "0700"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      export DEBIAN_FRONTEND=noninteractive
+
+      TERRAFORM_VERSION="${terraform_version}"
+      AGENT_VERSION="${agent_version}"
+      AGENT_SHA256="${agent_sha256}"
+      ORG_URL="${ado_organization_url}"
+      POOL="${agent_pool}"
+      AGENT_NAME="${agent_name}"
+      IDENTITY_CLIENT_ID="${identity_client_id}"
+      KV_NAME="${key_vault_name}"
+      SECRET_NAME="${agent_token_secret_name}"
+
+      apt-get update
+      apt-get install -y ca-certificates curl gnupg jq unzip
+      install -d -m 755 /etc/apt/keyrings
+
+      # Keep ONLY the expected key in the keyring, then re-read it and compare fingerprints.
+      add_key() {
+        local name="$1" url="$2" fpr="$3" tmp got
+        tmp=$(mktemp -d)
+        curl -fsSL "$url" -o "$tmp/key.asc"
+        gpg --homedir "$tmp" --no-default-keyring --keyring "$tmp/in.kbx" --import "$tmp/key.asc"
+        gpg --homedir "$tmp" --no-default-keyring --keyring "$tmp/in.kbx" --export "$fpr" > "/etc/apt/keyrings/$name.gpg"
+        got=$(gpg --show-keys --with-colons "/etc/apt/keyrings/$name.gpg" | awk -F: '$1=="fpr"{print $10; exit}')
+        if [ "$got" != "$fpr" ]; then
+          echo "key fingerprint mismatch for $name: got [$got]" >&2
+          exit 1
+        fi
+        chmod 644 "/etc/apt/keyrings/$name.gpg"
+        rm -rf "$tmp"
+      }
+
+      ARCH=$(dpkg --print-architecture)
+      . /etc/os-release
+      add_key microsoft https://packages.microsoft.com/keys/microsoft.asc BC528686B50D79E339D3721CEB3E94ADBE1229CF
+      add_key hashicorp https://apt.releases.hashicorp.com/gpg D55C0D1AC78A8D8126CB631CFC9CA96ACA026560
+      echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $VERSION_CODENAME main" > /etc/apt/sources.list.d/azure-cli.list
+      echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $VERSION_CODENAME main" > /etc/apt/sources.list.d/hashicorp.list
+      apt-get update
+      apt-get install -y azure-cli "terraform=$TERRAFORM_VERSION-1"
+      apt-mark hold terraform
+
+      id agent >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --user-group agent
+      install -d -o agent -g agent -m 755 /opt/ado-agent
+      cd /opt/ado-agent
+      curl -fsSL -o agent.tar.gz "https://download.agent.dev.azure.com/agent/$AGENT_VERSION/pipelines-agent-linux-x64-$AGENT_VERSION.tar.gz"
+      echo "$AGENT_SHA256  agent.tar.gz" | sha256sum -c -
+      tar xzf agent.tar.gz
+      rm agent.tar.gz
+      chown -R agent:agent /opt/ado-agent
+      ./bin/installdependencies.sh
+
+      az login --identity --client-id "$IDENTITY_CLIENT_ID" --output none
+      TOKEN=$(az keyvault secret show --vault-name "$KV_NAME" --name "$SECRET_NAME" --query value --output tsv)
+      az logout
+      runuser -u agent -- env HOME=/home/agent VSTS_AGENT_INPUT_TOKEN="$TOKEN" ./config.sh --unattended --replace --acceptTeeEula \
+        --url "$ORG_URL" --auth pat --pool "$POOL" --agent "$AGENT_NAME" --work _work
+      unset TOKEN
+
+      ./svc.sh install agent
+      ./svc.sh start
+      touch /var/lib/agent-bootstrap.done
+
+runcmd:
+  - [bash, /opt/agent-bootstrap.sh]

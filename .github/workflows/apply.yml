@@ -46,9 +46,13 @@ jobs:
         platform/security
         platform/cost
         workloads/storage-demo/prod
-      # Ephemeral roots: applied by hand from the workstation, never by CI.
+      # Applied by hand from the workstation, never by CI: the ephemeral roots, and
+      # platform/agent-identity, whose Key Vault Secrets User role is outside the apply
+      # identity's ABAC condition (ADR-0013, ADR-0024).
       SKIP_ROOTS: >-
         platform/runner
+        platform/ado-agent
+        platform/agent-identity
         workloads/storage-demo/dev
         workloads/vm-demo/dev
     steps:
