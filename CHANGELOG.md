@@ -94,6 +94,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Molecule scenario `ansible/roles/web/molecule/default/`: test sequence syntax, create, converge, idempotence, verify, destroy against the sandbox VM (Terraform owns the VM; the address comes from `MOLECULE_TARGET_ADDRESS`; no address committed). `verify.yml` asserts the package, service, landing page, `X-Platform` header, file owner and mode, and `nginx -t`. Guard plays fail the run if the inventory has no host.
 - ADR-0021 (ansible-lint and Molecule, with the observed behaviour) and runbook `ansible-control-node` section 5d with new troubleshooting rows.
 - Azure DevOps identity for Azure: `bootstrap/ado-oidc.sh` (app `app-ado-plan-shared`, Reader on the subscription, federated credential from environment values, no secret), manual workload identity federation service connection, the Azure Pipelines GitHub App on one repository, and the read-only `ado-auth-check` pipeline (`pipelines/ado-auth-check.yml`) with a denied-write step. ADR-0022 and the ado-service-connections runbook.
+- Azure DevOps pipeline `ado-terraform-validate` (`pipelines/ado-terraform-validate.yml`): `fmt -check`, `init -backend=false` and `validate` on every Terraform directory (floor 13) on the pinned image `ubuntu-24.04`, with Terraform 1.16.4 downloaded into `$(Agent.TempDirectory)` and checked against a pinned SHA-256 taken from the signed `SHA256SUMS`. `trigger` on `main` and `pr` to `main` with a path filter. No service connection and no Azure identity. Informational: the GitHub `validate-gate` stays the required check. ADR-0023 and the `ado-terraform-validate` runbook.
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
@@ -122,3 +123,4 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
   tags (it previously checked key presence only, so `owner = null` or `""` passed).
+- Runbook `ado-service-connections`: the symptom row for the OAuth consent screen no longer says it means no GitHub connection exists; the wizard asks for OAuth for each new pipeline, also when the App connection exists (observed 2026-10-29).

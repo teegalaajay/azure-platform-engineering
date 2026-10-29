@@ -29,9 +29,9 @@ pr:                             # pull request events: starts a run before anyth
 pool:
   vmImage: ubuntu-24.04         # pinned image (ADR-0023); a bump is a reviewed change
 
-  # Hash of terraform_1.16.4_linux_amd64.zip from the SHA256SUMS signed by HashiCorp, verified 2026-10-28.
 variables:
   terraformVersion: 1.16.4      # the only place this pipeline names a Terraform version (ADR-0023)
+  # Hash of terraform_1.16.4_linux_amd64.zip from the SHA256SUMS signed by HashiCorp, verified 2026-10-28.
   terraformSha256: dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df
 
 steps:
