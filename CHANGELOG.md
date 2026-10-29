@@ -122,7 +122,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
   check from the GitHub Actions app, with the branch-up-to-date policy.
 - **BREAKING** `ansible/roles/web`: variable `site_title` renamed to `web_site_title` (ansible-lint `var-naming[no-role-prefix]`). Callers that pass `site_title` must pass `web_site_title`. No caller exists in this repository. ADR-0018's deferral is reversed (ADR-0021).
 - `modules/linux-vm` and `modules/runner-vm`: optional `user_assigned_identity_ids` (default empty, so existing callers plan with no identity block).
-- `.github/workflows/apply.yml`: `platform/ado-agent` and `platform/agent-identity` added to `SKIP_ROOTS` (hand-applied; the apply identity's condition does not allow the Key Vault Secrets User assignment, ADR-0013, ADR-0024). `.github/workflows/plan.yml`: discovery floor `MIN_DIRS` 8 to 11.
+- `.github/workflows/apply.yml`: `platform/ado-agent` and `platform/agent-identity` added to `SKIP_ROOTS` (hand-applied; the apply identity's condition does not allow the Key Vault Secrets User assignment, ADR-0013, ADR-0024). `.github/workflows/plan.yml`: discovery floor `MIN_DIRS` 8 to 11 and a plan-only placeholder for the agent root's required organization URL.
 - `README.md`: the architecture diagram label for the runner and the ADO agent no longer says both have no managed identity.
 
 ### Fixed
