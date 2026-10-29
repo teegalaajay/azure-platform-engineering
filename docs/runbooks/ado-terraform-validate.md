@@ -62,7 +62,7 @@ On the Pull request or from the branch: the diagnostic step prints `x86_64` and 
 | Diagnostic prints `no terraform on PATH before our install` (observed, informational) | the image carries no Terraform | none; the pipeline installs its own |
 | `expected at least 13 Terraform directories` (expected, not yet observed) | discovery found fewer than the floor: a directory was removed or `find` broke | check `find . -name versions.tf`; change the floor in the same pull request that adds or removes a root |
 | Wizard opens "Authorize Azure Pipelines (OAuth)" although a GitHub connection exists (observed) | the wizard started from the portal asks for OAuth for each new pipeline | cancel; use the app route in section 2 |
-| A pull request starts no run (expected, not yet observed) | no changed file matches the path filter | compare the changed files with the filter; docs, `ansible/`, `bootstrap/` and `.github/` are outside it on purpose |
+| A pull request starts no run and GitHub lists `ado-terraform-validate` as skipped (observed, pull request 31) | no changed file matches the path filter | compare the changed files with the filter; docs, `ansible/`, `bootstrap/` and `.github/` are outside it on purpose |
 | Run fails because the image cannot be found (expected, not yet observed) | Microsoft retired the pinned image | section 4 |
 | A fork pull request starts a run (expected not to; not tested) | the fork option is off in the portal | check Triggers; the run would hold no secret and no connection |
 
