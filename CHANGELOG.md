@@ -95,6 +95,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0021 (ansible-lint and Molecule, with the observed behaviour) and runbook `ansible-control-node` section 5d with new troubleshooting rows.
 - Azure DevOps identity for Azure: `bootstrap/ado-oidc.sh` (app `app-ado-plan-shared`, Reader on the subscription, federated credential from environment values, no secret), manual workload identity federation service connection, the Azure Pipelines GitHub App on one repository, and the read-only `ado-auth-check` pipeline (`pipelines/ado-auth-check.yml`) with a denied-write step. ADR-0022 and the ado-service-connections runbook.
 - Azure DevOps pipeline `ado-terraform-validate` (`pipelines/ado-terraform-validate.yml`): `fmt -check`, `init -backend=false` and `validate` on every Terraform directory (floor 13) on the pinned image `ubuntu-24.04`, with Terraform 1.16.4 downloaded into `$(Agent.TempDirectory)` and checked against a pinned SHA-256 taken from the signed `SHA256SUMS`. `trigger` on `main` and `pr` to `main` with a path filter. No service connection and no Azure identity. Informational: the GitHub `validate-gate` stays the required check. ADR-0023 and the `ado-terraform-validate` runbook.
+- Self-hosted Azure DevOps agent: module `modules/ado-agent-vm` (wraps `linux-vm`; cloud-init installs a checksum-verified agent as the non-root user `agent` and registers it with a token read from Key Vault at first boot), persistent root `platform/agent-identity` (user-assigned identity `id-ado-agent-shared` with Key Vault Secrets User on the platform vault) and ephemeral root `platform/ado-agent` (VM in `snet-mgmt` with its own NAT Gateway, outputs for the resource group, VM, private IP and egress IP).
+- ADR-0024 (identity, secret access and module structure for the agent) and runbook `ado-agent` with the boot-log diagnosis ladder.
 
 ### Changed
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
@@ -119,6 +121,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `bootstrap/github-repo-settings.sh`: ruleset `protect-main` now requires the `validate-gate`
   check from the GitHub Actions app, with the branch-up-to-date policy.
 - **BREAKING** `ansible/roles/web`: variable `site_title` renamed to `web_site_title` (ansible-lint `var-naming[no-role-prefix]`). Callers that pass `site_title` must pass `web_site_title`. No caller exists in this repository. ADR-0018's deferral is reversed (ADR-0021).
+- `modules/linux-vm` and `modules/runner-vm`: optional `user_assigned_identity_ids` (default empty, so existing callers plan with no identity block).
+- `.github/workflows/apply.yml`: `platform/ado-agent` and `platform/agent-identity` added to `SKIP_ROOTS` (hand-applied; the apply identity's condition does not allow the Key Vault Secrets User assignment, ADR-0013, ADR-0024). `.github/workflows/plan.yml`: discovery floor `MIN_DIRS` 8 to 11.
+- `README.md`: the architecture diagram label for the runner and the ADO agent no longer says both have no managed identity.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
