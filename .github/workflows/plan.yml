@@ -83,6 +83,9 @@ jobs:
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
                     # Plan-only placeholder: the real token is minted at apply time and is dead after an hour.
           TF_VAR_registration_token: "plan-only-placeholder"
+          # Plan-only placeholder for the agent root's required URL. It has the right shape and no meaning:
+          # this workflow cannot apply, and the agent root is hand-applied (ADR-0024). Never copy it elsewhere.
+          TF_VAR_ado_organization_url: "https://dev.azure.com/plan-only-placeholder"
         run: |
           set +e
           terraform plan -input=false -lock=false -detailed-exitcode -no-color > plan.txt 2>&1
