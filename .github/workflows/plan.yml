@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - id: find
         env:
-          MIN_DIRS: "8"
+          MIN_DIRS: "11"
         run: |
           dirs=$(find . -name backend.tf -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)
