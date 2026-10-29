@@ -1,7 +1,7 @@
 # Runbook: Azure DevOps Terraform validate pipeline
 
 **Purpose:** Create, verify, bump and troubleshoot the `ado-terraform-validate` pipeline (ADR-0023): fmt, init without a backend and validate on every Terraform directory, from a pinned image and a verified Terraform download.
-**Owner:** platform-team · **Last validated:** 2026-10-29 (green run, checksum failure and formatting failure, runs `#20261029.1` to `#20261029.3`) · **Persistent:** yes (the pipeline definition stays; it runs on matching changes and on demand and holds no credential)
+**Owner:** platform-team · **Last validated:** 2026-10-29 (green run, checksum failure and formatting failure, runs `#20261029.1` to `#20261029.3`; run `#20261029.4` started by pull request 30) · **Persistent:** yes (the pipeline definition stays; it runs on matching changes and on demand and holds no credential)
 
 ## 1. Layout
 

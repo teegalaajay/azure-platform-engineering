@@ -35,6 +35,9 @@ Observed 2026-10-28 and 2026-10-29 (portal and run logs):
    forks of this repository" unchecked and greyed out, and "Add a PR comment about pipeline run status" on.
 8. The new pipeline wizard opened the OAuth consent screen even though the GitHub connection from Day 3
    existed; installing the Azure Pipelines GitHub App again for the one repository avoided it.
+9. Pull request 30 started run `#20261029.4` by itself ("PR automated", 1 min 1 s, green, on commit `71c8c0c`,
+   not the pushed head `ffbea5d`). GitHub lists it as a check named `ado-terraform-validate`; the check link
+   shows the organization name and the project ID on the public pull request page.
 
 ## Options considered
 
@@ -88,10 +91,13 @@ Structure: (a) one job per directory (needs a runtime matrix); (b) one job with 
   second line.
 - The wizard reopens the OAuth screen for each new pipeline (observation 8); the runbook row that says
   OAuth means no connection exists is wrong and is corrected.
+- The check link on a public pull request exposes the organization name and the project ID of a private
+  project (identifiers, not credentials); logs and screenshots still need redaction (ADR-0022).
 
 ## Unproven (to test, not assumed)
 
-A fork pull request being skipped (the setting is off; no second GitHub account); whether the path filter on a
+A fork pull request being skipped (the setting is off; no second GitHub account); a pull request that touches only files outside the filter starting no run (the in-filter case is observation 9);
+whether the path filter on a
 pull request looks at the whole pull request or the last push; the content of the PR status comment; the
 image version of the green run; the failure path of the version assert step; the behaviour of `$(...)` text
 inside a script (avoided, not tested); `tflint` on a hosted agent; the pipeline's default branch after the
