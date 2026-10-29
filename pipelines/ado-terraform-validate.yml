@@ -1,0 +1,100 @@
+# Terraform static checks on Azure DevOps: fmt, init without a backend, validate (ADR-0023). tflint is deferred.
+# Informational: the required gate on main stays validate-gate on GitHub. Holds no secret and no service connection.
+trigger:                        # push events: starts a run after a change lands on main
+  branches:
+    include:
+      - main
+  paths:                        # a run starts only if a changed file matches one of these
+    include:
+      - modules/**
+      - platform/**
+      - workloads/**
+      - .tflint.hcl
+      - pipelines/ado-terraform-validate.yml
+      - pipelines/templates/**
+
+pr:                             # pull request events: starts a run before anything merges
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - modules/**
+      - platform/**
+      - workloads/**
+      - .tflint.hcl
+      - pipelines/ado-terraform-validate.yml
+      - pipelines/templates/**
+
+pool:
+  vmImage: ubuntu-24.04         # pinned image (ADR-0023); a bump is a reviewed change
+
+variables:
+  terraformVersion: 1.16.4      # the only place this pipeline names a Terraform version (ADR-0023)
+  # Hash of terraform_1.16.4_linux_amd64.zip from the SHA256SUMS signed by HashiCorp, verified 2026-10-28.
+  terraformSha256: dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df
+
+steps:
+  - checkout: self              # fetch the repository files through the GitHub App connection
+    persistCredentials: false   # do not leave the git token on the agent after checkout
+
+  - bash: |
+      set -euo pipefail
+      uname -m
+      command -v terraform || echo "no terraform on PATH before our install"
+    displayName: Report what the image provides
+
+  - bash: |
+      set -euo pipefail
+      uname -m | grep -qx x86_64
+      mkdir -p "$TF_DIR"
+      cd "$TF_DIR"
+      curl -fsSLO "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+      echo "${TF_SHA256}  terraform_${TF_VERSION}_linux_amd64.zip" | sha256sum -c -
+      unzip -q "terraform_${TF_VERSION}_linux_amd64.zip" terraform
+      echo "##vso[task.prependpath]${TF_DIR}"
+    displayName: Install pinned Terraform
+    env:
+      TF_VERSION: $(terraformVersion)
+      TF_SHA256: $(terraformSha256)
+      TF_DIR: $(Agent.TempDirectory)/terraform
+
+
+  - bash: |
+      set -euo pipefail
+      terraform version | grep -Fx "Terraform v${TF_VERSION}"
+    displayName: Assert the Terraform version that will run
+    env:
+      TF_VERSION: $(terraformVersion)
+
+  - bash: |
+      set -uo pipefail
+      mapfile -t dirs < <(find . -name versions.tf -not -path '*/.terraform/*' -printf '%h\n' | sed 's|^\./||' | sort)
+      echo "found ${#dirs[@]} Terraform directories"
+      if [ "${#dirs[@]}" -lt "$MIN_DIRS" ]; then
+        echo "##vso[task.logissue type=error]expected at least ${MIN_DIRS} Terraform directories"
+        exit 1
+      fi
+      check_dir() {
+        cd "$1" && terraform fmt -check -diff && terraform init -backend=false -input=false && terraform validate
+      }
+      failed=()
+      for d in "${dirs[@]}"; do
+        echo "##[group]${d}"
+        if (check_dir "$d"); then
+          echo "ok: ${d}"
+        else
+          echo "##vso[task.logissue type=error]checks failed in ${d}"
+          failed+=("$d")
+        fi
+        echo "##[endgroup]"
+      done
+      if [ "${#failed[@]}" -gt 0 ]; then
+        echo "failed: ${failed[*]}"
+        exit 1
+      fi
+      echo "validated ${#dirs[@]} directories"
+    displayName: fmt, init and validate every Terraform directory
+    workingDirectory: $(Build.SourcesDirectory)
+    env:
+      MIN_DIRS: "13"
