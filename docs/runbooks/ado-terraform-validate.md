@@ -1,7 +1,7 @@
 # Runbook: Azure DevOps Terraform validate pipeline
 
 **Purpose:** Create, verify, bump and troubleshoot the `ado-terraform-validate` pipeline (ADR-0023): fmt, init without a backend and validate on every Terraform directory, from a pinned image and a verified Terraform download.
-**Owner:** platform-team · **Last validated:** 2026-10-29 (green run, checksum failure and formatting failure, runs `#20261029.1` to `#20261029.3`; run `#20261029.4` started by pull request 30) · **Persistent:** yes (the pipeline definition stays; it runs on matching changes and on demand and holds no credential)
+**Owner:** platform-team · **Last validated:** 2026-10-29 (green run, checksum failure and formatting failure, runs `#20261029.1` to `#20261029.3`; run `#20261029.4` started by pull request 30; run `#20261029.6` started by the merge to `main`) · **Persistent:** yes (the pipeline definition stays; it runs on matching changes and on demand and holds no credential)
 
 ## 1. Layout
 
@@ -20,7 +20,7 @@
 1. Do not accept the OAuth consent screen (admin on webhooks, all repositories). Install the Azure Pipelines GitHub App for the one repository, finish ADO's setup page and approve GitHub's "by Microsoft" authorization. The wizard then reaches the repository step without OAuth (observed, also after the connection from ADR-0022 existed).
 2. Pipelines, New pipeline, GitHub (YAML), the repository, Existing Azure Pipelines YAML file, the branch and `/pipelines/ado-terraform-validate.yml`. Choose Save, not Run.
 3. Rename it to exactly `ado-terraform-validate` (Rename/move). Two definitions for one file break the one-definition rule.
-4. After the pull request that adds the file merges, set the pipeline's default branch to `main` (it keeps the branch chosen in the wizard; the exact place in the editor has not been observed).
+4. Check the pipeline's default branch (Edit, the `...` menu, Triggers, YAML tab, Get sources, "Default branch for manual and scheduled builds"). It read `refs/heads/main` after the merge (observed 2026-10-29); whether it was `main` from creation or changed by itself was not observed.
 5. Check Pipelines, Edit, Triggers: pull request validation enabled, "Override the YAML pull request trigger from here" off, "Build pull requests from forks" off (observed 2026-10-29).
 
 ## 3. Bump Terraform (one pull request)
