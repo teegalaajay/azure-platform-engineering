@@ -1,5 +1,7 @@
 # Proves the self-hosted agent works end to end (ADR-0024): a job runs on it as the non-root service user,
-# and the VM's managed identity can list Key Vault secret NAMES. Metadata only: no secret value is requested.
+# the VM's managed identity can list Key Vault secret NAMES, and the service connection
+# sc-azure-keyvault-shared (the same managed identity, through workload identity federation) can read one
+# secret VALUE. The value is a test secret, never printed; only its length is checked.
 # Manual runs only: the agent exists only while platform/ado-agent is applied, so an automatic trigger would
 # queue a job that no agent can take.
 trigger: none                   # no push trigger
@@ -34,3 +36,20 @@ steps:
     env:
       KEY_VAULT_NAME: $(keyVaultName)
       AZURE_CONFIG_DIR: $(Agent.TempDirectory)/azure   # keep the sign-in out of the agent user's home
+
+  - task: AzureKeyVault@2
+    displayName: Service connection reads one secret value
+    inputs:
+      azureSubscription: sc-azure-keyvault-shared   # the manual workload identity federation connection; needs a permit on first use
+      KeyVaultName: $(keyVaultName)
+      SecretsFilter: ado-check-canary               # one named secret, never '*'
+      RunAsPreJob: false                            # fetch at this step, not before the job starts
+
+  - bash: |
+      set -euo pipefail
+      # A failed fetch leaves the literal text $(ado-check-canary) here (19 characters), so the check is the exact length.
+      echo "canary length: ${#CANARY}"
+      test "${#CANARY}" -eq 23
+    displayName: The value arrived (length only)
+    env:
+      CANARY: $(ado-check-canary)                   # the task set this as a secret variable; it is masked in logs
