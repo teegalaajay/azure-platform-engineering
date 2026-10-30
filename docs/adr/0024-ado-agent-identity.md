@@ -82,6 +82,23 @@ Facts read from the repository before this change:
 - Registration worked against an organization owned by a personal Microsoft account.
 - `config.sh` honoured `VSTS_AGENT_INPUT_TOKEN`; no `--token` flag was used.
 
+## Observed (2026-10-30)
+
+- The first job ran on the agent: the manual pipeline `ado-agent-check` (`pipelines/ado-agent-check.yml`).
+  The pipeline had to be permitted once on the pool before it could start. The job ran on `vm-adoagent-shared`
+  as user `agent`, uid 1001 (non-root). The step is written to fail when the uid is 0; that failing branch
+  was not tested.
+- In the same job, `az login --identity` (Azure CLI 2.91.0 on the agent) succeeded and `az keyvault secret
+  list` returned three secret names from the platform vault. Which identity signed in was not printed; the
+  VM has only the user-assigned one attached (reasoned). That shows the
+  role, the network path from `snet-mgmt` and the identity attachment work together. Names only: no secret
+  value was requested, so reading a value is still unproven.
+- The "New Azure service connection" dialog lists these identity types (the list scrolls; the last one seen
+  was Publish profile): App registration (automatic), App registration or managed identity (manual),
+  Managed identity (workload identity federation on an existing managed identity), Managed identity
+  (agent-assigned: the agent's system-assigned identity, marked not recommended) and Publish profile. The
+  agent-assigned type does not fit a user-assigned identity. No connection was created.
+
 ## Consequences
 
 Costs of the user-assigned identity:
@@ -111,11 +128,12 @@ Costs of the other decisions:
 
 ## Unproven (to test, not assumed)
 
-- That the organization can create a "Managed identity" service connection. If not, the fallback is an app
-  registration with workload identity federation scoped to Key Vault Secrets User, which weakens the reason
-  for that decision.
+- That a "Managed identity" service connection can be created and used. The portal offers the type (observed
+  2026-10-30) but none was created. It needs a federated credential on `id-ado-agent-shared`; whether the
+  portal creates it or Terraform must is not confirmed, and a portal-made credential would have to be added
+  to `platform/agent-identity`. If the connection cannot be made, the fallback is an app registration with
+  workload identity federation scoped to Key Vault Secrets User, which weakens the reason for that decision.
 - That a pipeline using that connection runs as the managed identity: one secret readable, a second denied.
-- That a job runs on the agent at all (the agent was Online; no job was queued).
 - That the personal access token is used only during registration, and what the agent does after it expires.
 - That the alternate package runs tasks that need Node 16 (the agent ships Node 24).
 - That the service starts again after a reboot (the unit is enabled; no reboot was done).

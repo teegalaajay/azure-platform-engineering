@@ -40,7 +40,9 @@ Registered and Online are different states: `config.sh` only creates the record;
 
 ## 4. Use it
 
-Point a pipeline job at the pool with `pool: name: pool-platform-shared`. No job has been run on this agent yet (not proven). The Key Vault service connection of type Managed identity is not built (ADR-0024, Unproven).
+Point a pipeline job at the pool with `pool: name: pool-platform-shared`. A new pipeline is not allowed to use the pool until someone permits it once (the run waits at a prompt; observed 2026-10-30): permit one pipeline at a time, never the whole project, because every permitted pipeline runs commands on the VM with its identity.
+
+The check pipeline is `ado-agent-check` (`pipelines/ado-agent-check.yml`, manual runs only). It prints the user and uid and lists Key Vault secret names through the VM's identity. A green run on 2026-10-30 showed user `agent`, uid 1001, and three secret names. The Key Vault service connection of type Managed identity is not built (ADR-0024, Unproven).
 
 ## 5. Take it down (same day)
 
@@ -70,6 +72,7 @@ The Agents tab says only that no registration arrived. Read the VM's own records
 | Registration refused with an authorization error | reasoned | the token expired or lacks Agent Pools: Read & manage: create a new one and replace the Key Vault secret (section 7) |
 | Boot script cannot read the secret | reasoned | role or firewall: the identity needs Secrets User on the vault and the VM must be in `snet-mgmt` |
 | Plan wants to create the NAT Gateway but one exists | reasoned | `platform/runner` is live; destroy it first |
+| `plan` or the state lock fails with 403 `AuthorizationPermissionMismatch` while reads (`az storage blob list --auth-mode login`) work | observed 2026-10-30 | the subscription is read-only: check `az rest --method get --url "https://management.azure.com/subscriptions/$ARM_SUBSCRIPTION_ID?api-version=2022-12-01" --query state`; the cause that day was an exhausted free credit (`ReadOnlyDisabledSubscription`), cleared by upgrading the subscription; the state field took about 5 minutes to read `Enabled`, and `az login` was needed to refresh the CLI's subscription list |
 
 ## 7. Change
 
