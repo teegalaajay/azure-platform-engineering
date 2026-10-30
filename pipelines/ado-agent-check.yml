@@ -1,0 +1,36 @@
+# Proves the self-hosted agent works end to end (ADR-0024): a job runs on it as the non-root service user,
+# and the VM's managed identity can list Key Vault secret NAMES. Metadata only: no secret value is requested.
+# Manual runs only: the agent exists only while platform/ado-agent is applied, so an automatic trigger would
+# queue a job that no agent can take.
+trigger: none                   # no push trigger
+pr: none                        # no pull request trigger
+
+pool:
+  name: pool-platform-shared    # the self-hosted pool; the job waits here if the agent is offline
+
+variables:
+  keyVaultName: kv-plat-shared-at01   # the platform vault (platform/security); the name is not a secret
+
+steps:
+  - checkout: none              # the job needs no repository files; nothing is fetched
+
+  - bash: |
+      set -euo pipefail
+      echo "user:     $(whoami)"
+      echo "uid:      $(id -u)"
+      echo "host:     $(hostname)"
+      echo "agent:    $AGENT_NAME"
+      test "$(id -u)" -ne 0     # fail the job if it runs as root (the service account must not be root)
+    displayName: Where this job runs
+    env:
+      AGENT_NAME: $(Agent.Name)
+
+  - bash: |
+      set -euo pipefail
+      az version --query '"azure-cli"' -o tsv
+      az login --identity --allow-no-subscriptions --output none   # sign in as the VM's user-assigned identity
+      az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv   # names only
+    displayName: Managed identity reads Key Vault secret names
+    env:
+      KEY_VAULT_NAME: $(keyVaultName)
+      AZURE_CONFIG_DIR: $(Agent.TempDirectory)/azure   # keep the sign-in out of the agent user's home
