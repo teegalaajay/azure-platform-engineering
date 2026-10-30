@@ -49,13 +49,13 @@ This is the target design; section 7 shows what is built today.
 |---|---|
 | `bootstrap/` | Idempotent scripts for what Terraform cannot create for itself (repository settings, state backend, CI identities) |
 | `modules/` | Reusable Terraform modules, never applied directly, versioned by tag |
-| `platform/` | Persistent root modules (foundation network, security) |
+| `platform/` | Root modules: persistent (foundation network, security, cost, agent identity) and ephemeral (self-hosted runner, Azure DevOps agent) |
 | `workloads/` | Ephemeral root modules (apply → verify → destroy) |
 | `ansible/` | Configuration management: roles, inventories, playbooks |
-| `pipelines/` | Azure DevOps multi-stage pipelines |
+| `pipelines/` | Azure DevOps pipelines (auth check, Terraform validate, agent check) |
 | `docs/adr/` | Architecture Decision Records |
 | `docs/runbooks/` | Operational runbooks for every persistent component |
-| `scripts/` | Local helper scripts |
+| `scripts/` | Local helper scripts and the repository consistency checks (Terraform version, shared boot block) |
 | `.github/workflows/` | CI workflows (`validate.yml` and `plan.yml` on pull requests; `apply.yml` on merge, on the self-hosted runner) |
 
 ## 4. Deploying from zero
@@ -63,9 +63,9 @@ This is the target design; section 7 shows what is built today.
 1. Build the workstation: `docs/runbooks/workstation-setup.md`.
 2. Clone the repository and run `pre-commit install` (hooks are per clone).
 3. Apply repository settings: `bootstrap/github-repo-settings.sh`.
-4. *(planned)* Create the state backend: `bootstrap/state-backend.sh`.
-5. *(planned)* Create CI identities with OIDC federation: `bootstrap/github-oidc.sh`.
-6. *(planned)* Apply `platform/foundation`, then `platform/security`, through pull requests.
+4. Create the state backend: `bootstrap/state-backend.sh`.
+5. Create the CI identities with OIDC federation: `bootstrap/github-oidc.sh` (GitHub Actions) and `bootstrap/ado-oidc.sh` (Azure DevOps).
+6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner` and the two dev demo workloads) are applied by hand; the runner and the agent are ephemeral and are destroyed after use (ADR-0015, ADR-0024).
 
 ## 5. Security model
 
@@ -98,6 +98,16 @@ This is the target design; section 7 shows what is built today.
 | [0013](docs/adr/0013-github-oidc-identities.md) | GitHub Actions identities for Azure (OIDC, plan and apply) |
 | [0014](docs/adr/0014-plan-on-pull-request.md) | Plan on pull request for every Terraform root |
 | [0015](docs/adr/0015-github-runner-and-apply-on-merge.md) | Self-hosted GitHub Actions runner and apply on merge |
+| [0016](docs/adr/0016-ansible-practice-target.md) | Ansible practice target outside the platform network |
+| [0017](docs/adr/0017-handler-failure-policy.md) | Handler failure policy for playbooks (`force_handlers`) |
+| [0018](docs/adr/0018-ansible-role-layout.md) | Ansible role layout, entry playbook and variable policy |
+| [0019](docs/adr/0019-ansible-azure-dynamic-inventory.md) | Azure dynamic inventory, dependency pinning and inventory identity |
+| [0020](docs/adr/0020-ansible-vault-strategy.md) | Ansible Vault strategy (password in Key Vault, client script, rotation) |
+| [0021](docs/adr/0021-ansible-lint-and-molecule.md) | ansible-lint (production profile) and Molecule tests for Ansible roles |
+| [0022](docs/adr/0022-ado-azure-identity.md) | Azure DevOps identity for Azure (workload identity federation, manual service connection) |
+| [0023](docs/adr/0023-ado-terraform-validate-pipeline.md) | Azure DevOps Terraform validate pipeline (pinned image, verified download, validate-level scope) |
+| [0024](docs/adr/0024-ado-agent-identity.md) | Self-hosted Azure DevOps agent: identity, secret access and module structure |
+| [0025](docs/adr/0025-terraform-version-source-and-drift-checks.md) | One source for the Terraform version, and checks for text that is written twice |
 
 ## 7. Status
 
@@ -109,6 +119,8 @@ This is the target design; section 7 shows what is built today.
 | Foundation network, Key Vault and cost budget | ✅ in place |
 | CI: validate workflow on every Terraform directory, required check on `main` | ✅ in place |
 | CI: plan on pull request, read-only OIDC identity | ✅ in place |
-| CD: apply on merge, self-hosted runner, `production` approval | 🟡 built, first run pending |
-| Configuration management (Ansible) and Azure DevOps pipelines | ⬜ planned |
-| Containers (AKS), hub-spoke, private endpoints, Azure Policy | ⬜ planned |
+| CD: apply on merge, self-hosted runner, `production` approval | ✅ in place; the runner is ephemeral and is rebuilt before an apply run (first apply run succeeded 2026-10-16) |
+| Configuration management (Ansible): role, dynamic inventory, Vault, lint and Molecule | ✅ in place, tested against a throwaway sandbox target (ADR-0016 to 0021) |
+| Azure DevOps: Azure identity, Terraform validate pipeline, self-hosted agent and its check pipeline | ✅ in place; the agent is ephemeral (ADR-0022 to 0024) |
+| Repository consistency checks (Terraform version, shared boot block) | ✅ in place (ADR-0025) |
+| Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |

@@ -101,6 +101,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Azure DevOps pipeline `ado-agent-check` (`pipelines/ado-agent-check.yml`): manual runs on `pool-platform-shared`; proves the job runs as the non-root `agent` user and that the VM's managed identity lists Key Vault secret names (no values). Observed results added to ADR-0024; runbook `ado-agent` gains the permit step and a symptom row for a read-only subscription.
 
 ### Changed
+- `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
+- `.github/workflows/plan.yml`: the comment above the runner placeholder is indented like the keys around it (no behaviour change).
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the
   role; `ansible/playbooks/templates/` removed (the templates now live in the role). Run
   `ansible-playbook ansible/site.yml` instead of `ansible/playbooks/web.yml`.
