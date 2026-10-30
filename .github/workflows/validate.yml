@@ -21,6 +21,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: repository consistency checks (ADR-0025)
+        run: |
+          fail=0
+          bash scripts/check-terraform-version.sh || fail=1
+          bash scripts/check-cloud-init-drift.sh || fail=1
+          exit "$fail"
       - id: find
         env:
           MIN_DIRS: "11"

@@ -48,3 +48,15 @@ repos:
         entry: ansible-lint
         pass_filenames: false
         files: ^(ansible/|\.ansible-lint$|ansible\.cfg$)
+      - id: terraform-version-consistency
+        name: terraform version is the same in every place (ADR-0025)
+        language: system
+        entry: bash scripts/check-terraform-version.sh
+        pass_filenames: false
+        files: ^(\.terraform-version|\.github/workflows/(apply|plan|validate)\.yml|pipelines/ado-terraform-validate\.yml|platform/(runner|ado-agent)/[^/]+\.auto\.tfvars)$
+      - id: cloud-init-shared-block
+        name: shared cloud-init block identical in runner-vm and ado-agent-vm (ADR-0025)
+        language: system
+        entry: bash scripts/check-cloud-init-drift.sh
+        pass_filenames: false
+        files: ^modules/(runner-vm|ado-agent-vm)/cloud-init\.yaml\.tftpl$

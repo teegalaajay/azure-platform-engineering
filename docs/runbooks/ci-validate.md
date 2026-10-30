@@ -82,3 +82,12 @@ The second command confirms the action's runtime (`node24` at the time of ADR-00
 ## 6. Teardown
 
 Do not remove the required check without replacing it: without it, `main` is protected only by the local hooks, which can be skipped. To disable the workflow temporarily, remove the rule in `bootstrap/github-repo-settings.sh`, run the script, and say why in the pull request.
+
+## 7. Repository consistency checks (ADR-0025)
+
+Two scripts in `scripts/` guard values that are written in more than one place. Both run as pre-commit hooks (only when a file they read changes) and as the first step of the `discover` job in `validate.yml`, so a mismatch turns the required check `validate-gate` red.
+
+- `scripts/check-terraform-version.sh` compares `.terraform-version` with the six places that name the version: `apply.yml` (assertion), `plan.yml`, `validate.yml`, `pipelines/ado-terraform-validate.yml` (variable and the hash comment), `platform/runner/runner.auto.tfvars` and `platform/ado-agent/ado-agent.auto.tfvars`. It fails on a different value and on a place it cannot find (a changed line format reads as `found 0`, not as a pass). It does not verify the SHA-256 beside the ADO pipeline's version.
+- `scripts/check-cloud-init-drift.sh` compares the block from `ARCH=$(dpkg ...)` to `apt-mark hold terraform` in `modules/runner-vm/cloud-init.yaml.tftpl` and `modules/ado-agent-vm/cloud-init.yaml.tftpl`. It fails when the two differ or a marker is missing.
+
+To change the Terraform version: edit `.terraform-version`, change the six places, replace the SHA-256 on `pipelines/ado-terraform-validate.yml` with the hash of the new zip from the `SHA256SUMS` file HashiCorp signs, run `bash scripts/check-terraform-version.sh`, and plan every root. A changed `terraform_version` in the two `*.auto.tfvars` changes the rendered boot script, which forces a VM replacement (observed for the agent on 2026-10-29), so a version bump is a rebuild of any live runner or agent.
