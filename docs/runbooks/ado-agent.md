@@ -46,7 +46,7 @@ The check pipeline is `ado-agent-check` (`pipelines/ado-agent-check.yml`, manual
 
 ## 5. Take it down (same day)
 
-1. In `platform/ado-agent`: `terraform plan -destroy -out=ado-agent-destroy.tfplan`; expect `0 to add, 0 to change, 7 to destroy`.
+1. In `platform/ado-agent`: `terraform plan -destroy -out="$HOME/ado-agent-destroy.tfplan"` (outside the repository; a saved plan holds sensitive values, and `.gitignore` ignores only names containing `tfplan`: a file called `tfdestroy` was not ignored on 2026-10-29); expect `0 to add, 0 to change, 7 to destroy`.
 2. `terraform apply ado-agent-destroy.tfplan`.
 3. `az group exists --name rg-ado-agent-shared` prints `false` (observed 2026-10-29).
 4. Delete both saved plan files. The agent's record in the pool stays listed as Offline; the next registration uses `--replace` and takes the name over (reasoned from the flag's purpose, observed only for the first boot).
