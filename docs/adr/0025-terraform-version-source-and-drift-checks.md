@@ -52,6 +52,15 @@ Option A.
 - The first version of the drift script started its block at the agent template's comment line and failed on
   unchanged files. Two of my first test edits changed a line outside the block (the template has two
   `apt-get update` lines) and passed, which was the correct result.
+- Against the real clone both scripts passed: seven places `ok`, shared block identical (9 lines). Pre-commit
+  ran the version hook (`Passed`) and skipped the drift hook on a commit that changed neither template;
+  naming the two templates ran it and it passed.
+- A real commit with `.terraform-version` set to `1.16.5` ran the version hook, which failed all seven lines
+  and blocked the commit.
+- The same change pushed with `--no-verify` (PR #34, commit `4caf884`): `discover` failed in 5 s at the step
+  "repository consistency checks (ADR-0025)" with seven `FAIL` lines and exit code 1 (the drift check still ran
+  after the first failure and printed `ok`); `validate-gate` failed in 3 s; the `validate` matrix and the ADO
+  check were skipped. A revert (`9e2be40`) restored `1.16.4`.
 
 ## Consequences
 
@@ -66,8 +75,6 @@ Option A.
 
 ## Unproven (to test, not assumed)
 
-- That the new CI step turns `validate-gate` red on a real mismatch (planned: one deliberate commit on the PR).
-- That the pre-commit hooks fire on a real commit that changes one of the watched files.
 - That the version check is complete: a seventh place added later would not be known to the script.
 - That the scripts work from a working directory other than the repository root (they `cd` to the root).
 
