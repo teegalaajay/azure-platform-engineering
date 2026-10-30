@@ -44,6 +44,10 @@ Facts read from the repository before this change:
 - Agent package: (a) the standard Linux package; (b) the alternate package without the old Node runtimes.
 - How `AzureKeyVault@2` signs in: (a) `sc-azure-plan-shared` with Secrets User added; (b) a new
   "Managed identity" service connection backed by the user-assigned identity.
+- Which dialog creates that connection: (a) "Managed identity" (automatic); (b) "App registration or managed
+  identity (manual)" with workload identity federation and the identity's client ID.
+- Where the federated credential on the identity lives: (a) Terraform in `platform/agent-identity`; (b) the
+  portal; (c) an idempotent script, `bootstrap/ado-agent-fic.sh`.
 
 ## Decision
 
@@ -65,8 +69,20 @@ Facts read from the repository before this change:
   reads it with the managed identity and passes it to `config.sh` through `VSTS_AGENT_INPUT_TOKEN`.
 - The agent package is the alternate Linux package (b), checksum-verified; the agent runs as the non-root
   user `agent` as a systemd service.
-- `AzureKeyVault@2` is intended to sign in through a "Managed identity" service connection (b);
-  `app-ado-plan-shared` stays Reader-only. Not built yet (see Unproven).
+- `AzureKeyVault@2` signs in through the service connection `sc-azure-keyvault-shared` (b), built with the
+  manual dialog (b) because the automatic one did not offer the platform subscription: its dropdowns showed
+  `A-sub`, a subscription of another account (observed 2026-10-30). The likely cause is that the signed-in
+  Azure DevOps account has no role in the platform subscription's tenant (reasoned, not tested). The connection
+  is workload identity federation with the client ID of `id-ado-agent-shared`; `app-ado-plan-shared` stays
+  Reader-only.
+- The federated credential is created by `bootstrap/ado-agent-fic.sh` (c), not by Terraform. Its issuer and
+  subject come from the draft connection and stay out of the repository. `plan.yml` plans every root with a
+  backend (read in the file: the `discover` job finds every `backend.tf`), so a Terraform credential would
+  need placeholder values and every pull request would show the credential as replaced or destroyed (reasoned,
+  not run); the script follows the pattern of `bootstrap/ado-oidc.sh`
+  (ADR-0022).
+- The pipeline `ado-agent-check` reads one test secret, `ado-check-canary`, and checks only its length (23).
+  Reading the real registration token for a test would put it in a job's environment.
 - The organization URL is a required root variable with no default, supplied as
   `TF_VAR_ado_organization_url` from the workstation, never committed.
 - A single `.terraform-version` file plus a CI check over the five places is decided but built in its own
@@ -99,6 +115,27 @@ Facts read from the repository before this change:
   (agent-assigned: the agent's system-assigned identity, marked not recommended) and Publish profile. The
   agent-assigned type does not fit a user-assigned identity. No connection was created.
 
+## Observed (2026-10-30, second session)
+
+- The manual dialog (identity type "App registration or managed identity (manual)", credential Workload
+  identity federation) takes the name, environment and tenant in Step 1; after Next a second page shows the
+  Issuer, the Subject identifier (it contains `/sc/` and the connection's own GUID) and asks for the subscription and the
+  application client ID. The connection appears in the list as Azure Resource Manager, Workload Identity
+  federation (Manual). The result of "Verify and save" was not recorded.
+- `bootstrap/ado-agent-fic.sh`: first run `created credential`, count 1; second run `unchanged`. After the
+  credential was deleted by hand, the run of the check pipeline failed in the fetch step with `AADSTS70025`
+  (the client `id-ado-agent-shared` has no configured federated identity credentials) and the two steps that
+  use the VM's identity stayed green. After the script recreated it, the pipeline was green again.
+- With the credential present, the step "Service connection reads one secret value" and the length check
+  passed (run `20261030.3`, 25 seconds): the value of `ado-check-canary` arrived and was 23 characters long.
+- The run did not pause for a permit. `ado-agent-check` is listed under the connection's pipeline permissions
+  (the screenshot showed one row; others were not seen). Why it was permitted without a prompt was not found.
+- The pool's Security tab lists `Project Valid Users` as Reader and the operator as Administrator. No other
+  principal is listed. Whether a Reader can queue a job or grant a permit was not tested; the roles were left
+  as they are (reasoned).
+- The agent was rebuilt from `main` (7 resources, cloud-init `done`, one agent Online, version 5.281.1) and
+  destroyed afterwards (7 destroyed, `az group exists` false).
+
 ## Consequences
 
 Costs of the user-assigned identity:
@@ -121,19 +158,32 @@ Costs of the other decisions:
 - The registration token is a personal access token that expires (30 days; about 2026-11-28). It is the
   weakest link: a person's credential, not a managed identity, and rotated by hand.
 - The pool, the token and the service connection are built in the portal, outside Terraform (exception
-  to the repository rule, listed with the other portal-built Azure DevOps objects).
+  to the repository rule, listed with the other portal-built Azure DevOps objects). The federated credential
+  is outside Terraform too: it is not in any state file, and destroying `platform/agent-identity` would delete
+  it with the identity (reasoned); rebuild it by running the script again with the issuer and subject from the
+  connection.
+- The role is scoped to the whole vault, so any pipeline permitted on `sc-azure-keyvault-shared` can read every
+  secret in it, including `ado-agent-pat` (reasoned from the role scope; a read of a second secret was not
+  tested). The permit per pipeline is the only control between a pipeline and those secrets.
+- `ado-check-canary` is a fourth secret in the vault, created by hand with `az` like the token, and the check
+  pipeline fails without it.
 - A value known only to one terminal reached `apply` once. The variable has no default so an unset value
   stops Terraform, but a wrong value still passes; the check is the Agents tab and the VM's boot logs
   (runbook `ado-agent`).
 
 ## Unproven (to test, not assumed)
 
-- That a "Managed identity" service connection can be created and used. The portal offers the type (observed
-  2026-10-30) but none was created. It needs a federated credential on `id-ado-agent-shared`; whether the
-  portal creates it or Terraform must is not confirmed, and a portal-made credential would have to be added
-  to `platform/agent-identity`. If the connection cannot be made, the fallback is an app registration with
-  workload identity federation scoped to Key Vault Secrets User, which weakens the reason for that decision.
-- That a pipeline using that connection runs as the managed identity: one secret readable, a second denied.
+- The automatic "Managed identity" dialog: it was opened and offered `A-sub` but not the platform
+  subscription; it was not tried with a subscription it can use, so whether it creates the federated
+  credential itself is unknown.
+- That a pipeline using the connection is denied a secret it should not read: the role covers the whole vault,
+  so no second secret was tested as denied.
+- Why the run was not asked for a permit, and whether the first run of a second pipeline on this connection is.
+- Whether `Verify and save` succeeds for a connection to an identity that has no role on the subscription (the
+  result was not recorded).
+- Which identity `az login --identity` used in the first step (still not printed).
+- That the length check fails on the literal text a failed fetch leaves behind (the failure seen was earlier,
+  in the fetch step itself).
 - That the personal access token is used only during registration, and what the agent does after it expires.
 - That the alternate package runs tasks that need Node 16 (the agent ships Node 24).
 - That the service starts again after a reboot (the unit is enabled; no reboot was done).

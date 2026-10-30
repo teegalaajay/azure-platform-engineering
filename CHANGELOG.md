@@ -99,6 +99,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0024 (identity, secret access and module structure for the agent) and runbook `ado-agent` with the boot-log diagnosis ladder.
 - `.terraform-version` (single source for the Terraform version) and two consistency checks in `scripts/` (`check-terraform-version.sh`, `check-cloud-init-drift.sh`), run as pre-commit hooks and as a step of the `validate` workflow's `discover` job; ADR-0025; runbook `ci-validate` section 7.
 - Azure DevOps pipeline `ado-agent-check` (`pipelines/ado-agent-check.yml`): manual runs on `pool-platform-shared`; proves the job runs as the non-root `agent` user and that the VM's managed identity lists Key Vault secret names (no values). Observed results added to ADR-0024; runbook `ado-agent` gains the permit step and a symptom row for a read-only subscription.
+- `bootstrap/ado-agent-fic.sh`: idempotent script that creates the federated credential on `id-ado-agent-shared` from the issuer and subject of the draft service connection (ADR-0024).
+- `ado-agent-check` reads one test secret value through the service connection `sc-azure-keyvault-shared` and checks its length; runbook `ado-agent` section 6 and ADR-0024 record what was observed.
 
 ### Changed
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
