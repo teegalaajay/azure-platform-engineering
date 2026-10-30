@@ -81,7 +81,7 @@ jobs:
           TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
           TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
-                    # Plan-only placeholder: the real token is minted at apply time and is dead after an hour.
+          # Plan-only placeholder: the real token is minted at apply time and is dead after an hour.
           TF_VAR_registration_token: "plan-only-placeholder"
           # Plan-only placeholder for the agent root's required URL. It has the right shape and no meaning:
           # this workflow cannot apply, and the agent root is hand-applied (ADR-0024). Never copy it elsewhere.
