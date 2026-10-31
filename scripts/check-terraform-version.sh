@@ -27,6 +27,8 @@ check .github/workflows/plan.yml             '^[[:space:]]+terraform_version:'
 check .github/workflows/validate.yml         '^[[:space:]]+terraform_version:'
 check pipelines/ado-terraform-validate.yml   '^[[:space:]]+terraformVersion:'
 check pipelines/ado-terraform-validate.yml   'Hash of terraform_[0-9.]+_linux_amd64\.zip'
+check pipelines/ado-terraform-deploy.yml     '^[[:space:]]+terraformVersion:'
+check pipelines/ado-terraform-deploy.yml     'Hash of terraform_[0-9.]+_linux_amd64\.zip'
 check platform/runner/runner.auto.tfvars     '^terraform_version[[:space:]]*='
 check platform/ado-agent/ado-agent.auto.tfvars '^terraform_version[[:space:]]*='
 

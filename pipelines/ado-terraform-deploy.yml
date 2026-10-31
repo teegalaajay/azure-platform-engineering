@@ -1,0 +1,61 @@
+# Multi-stage Terraform pipeline: Build (static checks) -> Plan (plan identity, publishes the plan)
+# -> Deploy (added with the apply identity).
+# Manual runs only. The repository is public, so no push and no pull request may start a run
+# that can hold a service connection (ADR-0026).
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-24.04         # pinned image, same as ado-terraform-validate; a bump is a reviewed change
+
+variables:
+  terraformVersion: 1.16.4      # the only Terraform version named in this pipeline (ADR-0025 check)
+  # Hash of terraform_1.16.4_linux_amd64.zip from the SHA256SUMS signed by HashiCorp, verified 2026-10-28.
+  terraformSha256: dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df
+  rootDir: workloads/pipeline-demo/dev   # the one Terraform root this pipeline deploys
+
+stages:
+  - stage: build
+    displayName: Build
+    jobs:
+      - job: validate
+        displayName: fmt, init without a backend, validate
+        steps:
+          - checkout: self
+            persistCredentials: false
+          - template: templates/terraform-install.yml
+            parameters:
+              version: $(terraformVersion)
+              sha256: $(terraformSha256)
+          - bash: |
+              set -euo pipefail
+              terraform fmt -check -diff
+              terraform init -backend=false -input=false
+              terraform validate
+            displayName: Static checks on the root
+            workingDirectory: $(Build.SourcesDirectory)/$(rootDir)
+
+  - stage: plan
+    displayName: Plan
+    dependsOn: build
+    jobs:
+      - job: plan
+        displayName: Plan as the plan identity
+        steps:
+          - checkout: self
+            persistCredentials: false
+          - template: templates/terraform-install.yml
+            parameters:
+              version: $(terraformVersion)
+              sha256: $(terraformSha256)
+          - template: templates/terraform-azure-step.yml
+            parameters:
+              display_name: terraform init and plan
+              service_connection: sc-azure-plan-shared
+              working_directory: $(Build.SourcesDirectory)/$(rootDir)
+              script: |
+                terraform init -input=false
+                terraform plan -input=false -lock=false -out="$(Build.ArtifactStagingDirectory)/dev.tfplan"
+          - publish: $(Build.ArtifactStagingDirectory)/dev.tfplan
+            artifact: tfplan
+            displayName: Publish the plan file
