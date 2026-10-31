@@ -101,6 +101,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Azure DevOps pipeline `ado-agent-check` (`pipelines/ado-agent-check.yml`): manual runs on `pool-platform-shared`; proves the job runs as the non-root `agent` user and that the VM's managed identity lists Key Vault secret names (no values). Observed results added to ADR-0024; runbook `ado-agent` gains the permit step and a symptom row for a read-only subscription.
 - `bootstrap/ado-agent-fic.sh`: idempotent script that creates the federated credential on `id-ado-agent-shared` from the issuer and subject of the draft service connection (ADR-0024).
 - `ado-agent-check` reads one test secret value through the service connection `sc-azure-keyvault-shared` and checks its length; runbook `ado-agent` section 6 and ADR-0024 record what was observed.
+- `pipelines/ado-terraform-deploy.yml`: Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy behind a `deploy` parameter) with a shared native-OIDC sign-in template and a pinned-Terraform install template; ADR-0026 and runbook `ado-terraform-deploy`.
+- `workloads/pipeline-demo/dev`: one resource group with the mandatory tags, the target of that pipeline.
+- `bootstrap/ado-oidc.sh`: apply identity `app-ado-apply-shared` (Contributor at the subscription, Storage Blob Data Contributor on the state container) and its federated credential.
 
 ### Changed
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
@@ -130,6 +133,12 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `modules/linux-vm` and `modules/runner-vm`: optional `user_assigned_identity_ids` (default empty, so existing callers plan with no identity block).
 - `.github/workflows/apply.yml`: `platform/ado-agent` and `platform/agent-identity` added to `SKIP_ROOTS` (hand-applied; the apply identity's condition does not allow the Key Vault Secrets User assignment, ADR-0013, ADR-0024). `.github/workflows/plan.yml`: discovery floor `MIN_DIRS` 8 to 11 and a plan-only placeholder for the agent root's required organization URL.
 - `README.md`: the architecture diagram label for the runner and the ADO agent no longer says both have no managed identity.
+- `bootstrap/ado-oidc.sh`: the plan identity gains Storage Blob Data Reader on the `tfstate` container (it could not read state with Reader alone).
+- **BREAKING** `bootstrap/ado-oidc.sh` and `bootstrap/ado-agent-fic.sh`: the federated-credential variables are named per connection (`ADO_PLAN_FIC_*`, `ADO_APPLY_FIC_*`, `ADO_KV_FIC_*`); the shared `ADO_FIC_ISSUER` and `ADO_FIC_SUBJECT` are refused by `ado-oidc.sh` and ignored by `ado-agent-fic.sh`.
+- `.github/workflows/apply.yml`: `workloads/pipeline-demo/dev` added to `SKIP_ROOTS`.
+- Discovery floors now equal the real counts: `plan.yml` 12 roots with a backend; `validate.yml` and `pipelines/ado-terraform-validate.yml` 17 Terraform directories.
+- `scripts/check-terraform-version.sh`: covers `pipelines/ado-terraform-deploy.yml`.
+- Runbooks `ado-service-connections` and `ado-agent`: variable names updated.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

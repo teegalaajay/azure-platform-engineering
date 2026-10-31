@@ -97,4 +97,4 @@ steps:
     displayName: fmt, init and validate every Terraform directory
     workingDirectory: $(Build.SourcesDirectory)
     env:
-      MIN_DIRS: "13"
+      MIN_DIRS: "17"

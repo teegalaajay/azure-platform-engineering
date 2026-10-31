@@ -52,7 +52,7 @@ This is the target design; section 7 shows what is built today.
 | `platform/` | Root modules: persistent (foundation network, security, cost, agent identity) and ephemeral (self-hosted runner, Azure DevOps agent) |
 | `workloads/` | Ephemeral root modules (apply → verify → destroy) |
 | `ansible/` | Configuration management: roles, inventories, playbooks |
-| `pipelines/` | Azure DevOps pipelines (auth check, Terraform validate, agent check) |
+| `pipelines/` | Azure DevOps pipelines (auth check, Terraform validate, agent check, multi-stage Terraform deploy and shared templates) |
 | `docs/adr/` | Architecture Decision Records |
 | `docs/runbooks/` | Operational runbooks for every persistent component |
 | `scripts/` | Local helper scripts and the repository consistency checks (Terraform version, shared boot block) |
@@ -108,6 +108,7 @@ This is the target design; section 7 shows what is built today.
 | [0023](docs/adr/0023-ado-terraform-validate-pipeline.md) | Azure DevOps Terraform validate pipeline (pinned image, verified download, validate-level scope) |
 | [0024](docs/adr/0024-ado-agent-identity.md) | Self-hosted Azure DevOps agent: identity, secret access and module structure |
 | [0025](docs/adr/0025-terraform-version-source-and-drift-checks.md) | One source for the Terraform version, and checks for text that is written twice |
+| [0026](docs/adr/0026-ado-terraform-deploy-pipeline.md) | Azure DevOps multi-stage Terraform pipeline: Build, Plan and a manual Deploy, two identities, one shared sign-in template |
 
 ## 7. Status
 
@@ -123,4 +124,5 @@ This is the target design; section 7 shows what is built today.
 | Configuration management (Ansible): role, dynamic inventory, Vault, lint and Molecule | ✅ in place, tested against a throwaway sandbox target (ADR-0016 to 0021) |
 | Azure DevOps: Azure identity, Terraform validate pipeline, self-hosted agent and its check pipeline | ✅ in place; the agent is ephemeral (ADR-0022 to 0024) |
 | Repository consistency checks (Terraform version, shared boot block) | ✅ in place (ADR-0025) |
+| Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy) | ✅ in place; Deploy has no approval or branch check yet (ADR-0026) |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |

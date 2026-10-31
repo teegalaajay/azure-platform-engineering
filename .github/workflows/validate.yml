@@ -29,7 +29,7 @@ jobs:
           exit "$fail"
       - id: find
         env:
-          MIN_DIRS: "11"
+          MIN_DIRS: "17"
         run: |
           dirs=$(find . -name versions.tf -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)

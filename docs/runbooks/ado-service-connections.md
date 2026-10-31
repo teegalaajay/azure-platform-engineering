@@ -31,8 +31,8 @@ bootstrap/ado-oidc.sh
 4. Run the script again with both values:
 
 ```bash
-export ADO_FIC_ISSUER='<issuer from step 2>'
-export ADO_FIC_SUBJECT='<subject from step 2>'
+export ADO_PLAN_FIC_ISSUER='<issuer from step 2>'
+export ADO_PLAN_FIC_SUBJECT='<subject from step 2>'
 bootstrap/ado-oidc.sh
 ```
 

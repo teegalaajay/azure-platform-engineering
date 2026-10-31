@@ -1,0 +1,31 @@
+# One Terraform command with native OIDC sign-in for the provider and the backend (ADR-0026).
+# The command runs inside the sign-in step: variables set in one step do not exist in the next,
+# and a fresh ID token is minted for every step, so a long run cannot outlive its token.
+parameters:
+  - name: display_name          # shown in the run UI
+    type: string
+  - name: service_connection    # the service connection NAME; the file holds no credential
+    type: string
+  - name: working_directory     # the Terraform root to run in
+    type: string
+  - name: script                # the shell commands to run once signed in
+    type: string
+
+steps:
+  - task: AzureCLI@2
+    displayName: ${{ parameters.display_name }}
+    inputs:
+      azureSubscription: ${{ parameters.service_connection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true   # exposes servicePrincipalId, tenantId and idToken to the script
+      workingDirectory: ${{ parameters.working_directory }}
+      inlineScript: |
+        set -euo pipefail         # -u matters: a missing idToken must stop the step, not leave an empty token
+        export ARM_USE_OIDC=true
+        export ARM_CLIENT_ID="$servicePrincipalId"
+        export ARM_TENANT_ID="$tenantId"
+        export ARM_OIDC_TOKEN="$idToken"
+        read -r ARM_SUBSCRIPTION_ID < <(az account show --query id -o tsv)
+        export ARM_SUBSCRIPTION_ID
+        ${{ parameters.script }}
