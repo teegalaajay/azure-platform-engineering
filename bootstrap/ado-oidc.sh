@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
-# Converge the Azure DevOps identity for Azure (ADR-0022), phase 1: app, service principal, Reader role. No credential yet.
-# Requires: az logged in to the target tenant; ARM_SUBSCRIPTION_ID exported (docs/runbooks/workstation-setup.md).
+# Converge the Azure DevOps identities for Azure (ADR-0022, ADR-0026): a plan and an apply app registration,
+# their service principals, roles and federated credentials.
+# Requires: az logged in to the target tenant; ARM_SUBSCRIPTION_ID exported (docs/runbooks/workstation-setup.md); jq.
 # Usage: bootstrap/ado-oidc.sh
+# A credential is converged only when both variables of its pair are set, copied from the service connection in the ADO portal:
+#   ADO_PLAN_FIC_ISSUER and ADO_PLAN_FIC_SUBJECT      for sc-azure-plan-shared
+#   ADO_APPLY_FIC_ISSUER and ADO_APPLY_FIC_SUBJECT    for sc-azure-apply-shared
+# One pair per connection, so a value left in the shell for one connection can never be read for another.
 set -euo pipefail                       # -e stop on a failed command; -u unset variable = error; pipefail = a failure in a pipe fails the pipe
 
 ADO_PLAN_APP="app-ado-plan-shared"      # one identity per pipeline system and purpose (ADR-0022); never reuse the GitHub apps
+ADO_APPLY_APP="app-ado-apply-shared"    # the identity that may write (ADR-0026)
+ADO_PLAN_CRED="ado-sc-azure-plan-shared"     # credential name inside the plan app; unique per app and immutable
+ADO_APPLY_CRED="ado-sc-azure-apply-shared"   # credential name inside the apply app
+ADO_AUDIENCE="api://AzureADTokenExchange"    # the audience Entra expects on a federated token for Azure
 
 echo "== guard: CLI subscription =="
 : "${ARM_SUBSCRIPTION_ID:?ARM_SUBSCRIPTION_ID is not set}"   # abort with a message if unset or empty
@@ -13,6 +22,12 @@ if [ "$current" != "$ARM_SUBSCRIPTION_ID" ]; then
   echo "az CLI is on $current, not ARM_SUBSCRIPTION_ID. Run: az account set -s \"\$ARM_SUBSCRIPTION_ID\"" >&2
   exit 1                                                     # stop before anything is created
 fi
+for retired in ADO_FIC_ISSUER ADO_FIC_SUBJECT; do            # the old shared names: a value left in the shell once overwrote the wrong credential
+  if [ -n "${!retired:-}" ]; then
+    echo "ERROR: $retired is a retired name and is still set in this shell. Run: unset ADO_FIC_ISSUER ADO_FIC_SUBJECT" >&2
+    exit 1
+  fi
+done
 echo "ok"
 
 ensure_app() {                          # $1 = display name; prints the application (client) ID on stdout
@@ -54,24 +69,28 @@ ensure_role() {                         # $1 = service principal object ID, $2 =
   fi
 }
 
-echo "== app registration, service principal, role =="
-ado_id=$(ensure_app "$ADO_PLAN_APP")   # an assignment from $(...) stops the script under set -e if the function exits non-zero
-ado_sp=$(ensure_sp "$ado_id")
+SUB_SCOPE="/subscriptions/${ARM_SUBSCRIPTION_ID}"
 STATE_RG="rg-tfstate"                   # names fixed by ADR-0005 / bootstrap/state-backend.sh
 STATE_SA="stattfstate01"
 STATE_CONTAINER="tfstate"
 container_scope=$(az storage container-rm show --storage-account "$STATE_SA" --resource-group "$STATE_RG" \
   --name "$STATE_CONTAINER" --query id -o tsv)   # ARM's own spelling of the container ID, so scope comparisons match exactly
 
-ensure_role "$ado_sp" "Reader" "/subscriptions/${ARM_SUBSCRIPTION_ID}"            # control plane: read every resource for refresh
-ensure_role "$ado_sp" "Storage Blob Data Reader" "$container_scope"               # data plane: read state blobs; no write, so no lease (ADR-0013)
+echo "== plan identity: app registration, service principal, roles =="
+plan_id=$(ensure_app "$ADO_PLAN_APP")  # an assignment from $(...) stops the script under set -e if the function exits non-zero
+plan_sp=$(ensure_sp "$plan_id")
+ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
+ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013)
 
-# ---- federated credential: the only thing that lets the ADO service connection become this identity (ADR-0022) ----
-# Issuer and subject come from the draft service connection in the ADO portal. They are trust parameters, not secrets,
+echo "== apply identity: app registration, service principal, roles =="
+apply_id=$(ensure_app "$ADO_APPLY_APP")
+apply_sp=$(ensure_sp "$apply_id")
+ensure_role "$apply_sp" "Contributor" "$SUB_SCOPE"                            # control plane: may create the demo resource group (ADR-0026, B6)
+ensure_role "$apply_sp" "Storage Blob Data Contributor" "$container_scope"    # data plane: write state and take the lease
+
+# ---- federated credentials: the only thing that lets an ADO service connection become one of these identities ----
+# Issuer and subject come from the service connection in the ADO portal. They are trust parameters, not secrets,
 # but they identify our tenant and organization, so they are read from the environment and never stored in the repo.
-ADO_AUDIENCE="api://AzureADTokenExchange"   # the audience Entra expects on a federated token for Azure
-ADO_CRED="ado-sc-azure-plan-shared"         # credential name inside the app; unique per app and immutable
-
 ensure_fic() {                          # $1 = client ID, $2 = credential name, $3 = subject, $4 = issuer
   local app="$1" name="$2" subject="$3" issuer="$4" body actual want
   body=$(jq -n --arg n "$name" --arg s "$subject" --arg i "$issuer" --arg a "$ADO_AUDIENCE" \
@@ -101,18 +120,30 @@ prune_fic() {                           # $1 = client ID, $2 = the one credentia
   done
 }
 
-echo "== federated credential =="
-if [ -n "${ADO_FIC_ISSUER:-}${ADO_FIC_SUBJECT:-}" ]; then      # at least one of the two is set
-  : "${ADO_FIC_ISSUER:?ADO_FIC_ISSUER is not set}"             # then both are required, together
-  : "${ADO_FIC_SUBJECT:?ADO_FIC_SUBJECT is not set}"
-  ensure_fic "$ado_id" "$ADO_CRED" "$ADO_FIC_SUBJECT" "$ADO_FIC_ISSUER"
-  prune_fic  "$ado_id" "$ADO_CRED"                             # exactly one credential may exist on this identity
-else
-  echo "skipped: ADO_FIC_ISSUER and ADO_FIC_SUBJECT are not set"
-fi
+converge_fic() {                        # $1 = client ID, $2 = credential name, $3 = variable prefix (ADO_PLAN or ADO_APPLY)
+  local app="$1" cred="$2" prefix="$3" iss_var sub_var
+  iss_var="${prefix}_FIC_ISSUER"        # the names of this connection's two variables, built from the prefix
+  sub_var="${prefix}_FIC_SUBJECT"
+  if [ -n "${!iss_var:-}${!sub_var:-}" ]; then      # ${!name} reads the variable whose name is in $name; at least one of the two is set
+    : "${!iss_var:?$iss_var is not set}"            # then both are required, together
+    : "${!sub_var:?$sub_var is not set}"
+    ensure_fic "$app" "$cred" "${!sub_var}" "${!iss_var}"
+    prune_fic  "$app" "$cred"                       # exactly one credential may exist on this identity
+  else
+    echo "skipped: $iss_var and $sub_var are not set"
+  fi
+}
+
+echo "== federated credentials =="
+converge_fic "$plan_id"  "$ADO_PLAN_CRED"  ADO_PLAN
+converge_fic "$apply_id" "$ADO_APPLY_CRED" ADO_APPLY
 
 echo "== evidence =="
-az ad app list --filter "startswith(displayName,'app-ado')" --query "[].[displayName, appId]" -o tsv            # expect exactly one row
-az role assignment list --assignee "$ado_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv            # expect Reader at the subscription and Storage Blob Data Reader on the tfstate container
-echo "federated credentials: $(az ad app federated-credential list --id "$ado_id" --query 'length(@)' -o tsv)"   # expect 0 until B4 gives us issuer and subject
-echo "secrets or certificates: $(az ad app credential list --id "$ado_id" --query 'length(@)' -o tsv)"           # expect 0, always
+az ad app list --filter "startswith(displayName,'app-ado')" --query "[].[displayName, appId]" -o tsv        # expect exactly two rows
+echo "-- plan roles: Reader at the subscription and Storage Blob Data Reader on the tfstate container"
+az role assignment list --assignee "$plan_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
+echo "-- apply roles: Contributor at the subscription and Storage Blob Data Contributor on the tfstate container"
+az role assignment list --assignee "$apply_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv
+echo "plan federated credentials: $(az ad app federated-credential list --id "$plan_id" --query 'length(@)' -o tsv)"     # expect 1
+echo "apply federated credentials: $(az ad app federated-credential list --id "$apply_id" --query 'length(@)' -o tsv)"   # expect 0 until the apply connection exists
+echo "secrets or certificates: plan $(az ad app credential list --id "$plan_id" --query 'length(@)' -o tsv), apply $(az ad app credential list --id "$apply_id" --query 'length(@)' -o tsv)"   # expect 0 and 0, always
