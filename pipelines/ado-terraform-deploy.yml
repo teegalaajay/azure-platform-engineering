@@ -78,6 +78,8 @@ stages:
           runOnce:
             deploy:
               steps:
+                - checkout: self
+                  persistCredentials: false
                 - download: current
                   artifact: tfplan
                   displayName: Download the plan file
