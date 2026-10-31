@@ -5,6 +5,12 @@
 trigger: none
 pr: none
 
+parameters:
+  - name: deploy
+    displayName: Run the Deploy stage (changes Azure)
+    type: boolean
+    default: false              # a person must tick it; the stage is Skipped otherwise (ADR-0026)
+
 pool:
   vmImage: ubuntu-24.04         # pinned image, same as ado-terraform-validate; a bump is a reviewed change
 
@@ -59,3 +65,29 @@ stages:
           - publish: $(Build.ArtifactStagingDirectory)/dev.tfplan
             artifact: tfplan
             displayName: Publish the plan file
+
+  - stage: deploy
+    displayName: Deploy
+    dependsOn: plan
+    condition: and(succeeded(), eq('${{ parameters.deploy }}', 'true'))
+    jobs:
+      - job: apply
+        displayName: Apply the reviewed plan as the apply identity
+        steps:
+          - checkout: self
+            persistCredentials: false
+          - download: current
+            artifact: tfplan
+            displayName: Download the plan file
+          - template: templates/terraform-install.yml
+            parameters:
+              version: $(terraformVersion)
+              sha256: $(terraformSha256)
+          - template: templates/terraform-azure-step.yml
+            parameters:
+              display_name: terraform init and apply
+              service_connection: sc-azure-apply-shared
+              working_directory: $(Build.SourcesDirectory)/$(rootDir)
+              script: |
+                terraform init -input=false
+                terraform apply -input=false "$(Pipeline.Workspace)/tfplan/dev.tfplan"
