@@ -57,7 +57,14 @@ ensure_role() {                         # $1 = service principal object ID, $2 =
 echo "== app registration, service principal, role =="
 ado_id=$(ensure_app "$ADO_PLAN_APP")   # an assignment from $(...) stops the script under set -e if the function exits non-zero
 ado_sp=$(ensure_sp "$ado_id")
-ensure_role "$ado_sp" "Reader" "/subscriptions/${ARM_SUBSCRIPTION_ID}"   # today's only job is to prove auth and read; writes come later, with a reason
+STATE_RG="rg-tfstate"                   # names fixed by ADR-0005 / bootstrap/state-backend.sh
+STATE_SA="stattfstate01"
+STATE_CONTAINER="tfstate"
+container_scope=$(az storage container-rm show --storage-account "$STATE_SA" --resource-group "$STATE_RG" \
+  --name "$STATE_CONTAINER" --query id -o tsv)   # ARM's own spelling of the container ID, so scope comparisons match exactly
+
+ensure_role "$ado_sp" "Reader" "/subscriptions/${ARM_SUBSCRIPTION_ID}"            # control plane: read every resource for refresh
+ensure_role "$ado_sp" "Storage Blob Data Reader" "$container_scope"               # data plane: read state blobs; no write, so no lease (ADR-0013)
 
 # ---- federated credential: the only thing that lets the ADO service connection become this identity (ADR-0022) ----
 # Issuer and subject come from the draft service connection in the ADO portal. They are trust parameters, not secrets,
@@ -106,6 +113,6 @@ fi
 
 echo "== evidence =="
 az ad app list --filter "startswith(displayName,'app-ado')" --query "[].[displayName, appId]" -o tsv            # expect exactly one row
-az role assignment list --assignee "$ado_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv            # expect exactly Reader at the subscription
+az role assignment list --assignee "$ado_sp" --all --query "[].[roleDefinitionName, scope]" -o tsv            # expect Reader at the subscription and Storage Blob Data Reader on the tfstate container
 echo "federated credentials: $(az ad app federated-credential list --id "$ado_id" --query 'length(@)' -o tsv)"   # expect 0 until B4 gives us issuer and subject
 echo "secrets or certificates: $(az ad app credential list --id "$ado_id" --query 'length(@)' -o tsv)"           # expect 0, always
