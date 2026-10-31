@@ -49,12 +49,14 @@ jobs:
       # Applied by hand from the workstation, never by CI: the ephemeral roots, and
       # platform/agent-identity, whose Key Vault Secrets User role is outside the apply
       # identity's ABAC condition (ADR-0013, ADR-0024).
+      # workloads/pipeline-demo/dev: applied by the ADO pipeline ado-terraform-deploy, not here (ADR-0026).
       SKIP_ROOTS: >-
         platform/runner
         platform/ado-agent
         platform/agent-identity
         workloads/storage-demo/dev
         workloads/vm-demo/dev
+        workloads/pipeline-demo/dev
     steps:
       - uses: actions/checkout@v7
         with:
