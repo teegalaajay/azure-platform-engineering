@@ -46,6 +46,11 @@ Option 1.
   `line 3: doesNotExist: command not found` and `unknown macro: []`. So `${{ }}` was replaced before the run (with the
   text `False`), `$()` of a defined variable was replaced just before the step ran, and `$()` of an undefined name was
   left as written and run by bash as a command substitution.
+- Run `#20261102.6` from `main` after the merge (PR #40, `38ac02a`), `deploy` ticked, approved: Deploy was green. The
+  apply job's steps were Initialize job, Checkout, Install pinned Terraform, Assert the Terraform version that will
+  run, Download the plan file, terraform init and apply, Post-job: Checkout, Finalize Job. The Checkout step came from
+  the setup template inside the `deployment:` job. The apply ended `Apply complete! Resources: 0 added, 0 changed,
+  0 destroyed.`
 
 ## Reasoned (not tested)
 
@@ -59,8 +64,3 @@ Option 1.
   job with no Checkout step) would return if the template were removed from the deploy job.
 - A pull request that changes a file under `pipelines/templates/` starts `ado-terraform-validate` (its path filters,
   read from the file), although that pipeline does not use the setup template.
-
-## Unproven (to test, not assumed)
-
-- The deploy job with the setup template: a `checkout:` inside a template within a `deployment:` job. It can only be
-  run from `main` after the merge, because of the Branch control check (ADR-0027).
