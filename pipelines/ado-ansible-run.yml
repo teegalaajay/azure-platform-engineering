@@ -27,3 +27,22 @@ steps:
     displayName: Install pinned Ansible into a venv
     env:
       AGENT_TEMP: $(Agent.TempDirectory)   # a per-job folder the agent clears afterwards
+
+  - task: AzureKeyVault@2
+    displayName: Test - multi-line secret canary
+    inputs:
+      azureSubscription: sc-azure-keyvault-shared   # the Key Vault reader connection (ADR-0024)
+      KeyVaultName: kv-plat-shared-at01
+      SecretsFilter: ado-multiline-canary           # one named secret, never '*'
+      RunAsPreJob: false                            # fetch at this step, not before the job starts
+
+  - bash: |
+      set -euo pipefail
+      echo "length: ${#CANARY}"
+      echo -n "lines:  "; printf '%s' "$CANARY" | grep -c ''
+      printf '%s' "$CANARY" | cat -A
+      echo "--- plain echo:"
+      echo "$CANARY"
+    displayName: Test - what the agent received
+    env:
+      CANARY: $(ado-multiline-canary)
