@@ -109,6 +109,7 @@ This is the target design; section 7 shows what is built today.
 | [0024](docs/adr/0024-ado-agent-identity.md) | Self-hosted Azure DevOps agent: identity, secret access and module structure |
 | [0025](docs/adr/0025-terraform-version-source-and-drift-checks.md) | One source for the Terraform version, and checks for text that is written twice |
 | [0026](docs/adr/0026-ado-terraform-deploy-pipeline.md) | Azure DevOps multi-stage Terraform pipeline: Build, Plan and a manual Deploy, two identities, one shared sign-in template |
+| [0027](docs/adr/0027-ado-environment-approval.md) | An approval check on the Azure DevOps environment that the Deploy stage targets |
 
 ## 7. Status
 
@@ -124,5 +125,5 @@ This is the target design; section 7 shows what is built today.
 | Configuration management (Ansible): role, dynamic inventory, Vault, lint and Molecule | ✅ in place, tested against a throwaway sandbox target (ADR-0016 to 0021) |
 | Azure DevOps: Azure identity, Terraform validate pipeline, self-hosted agent and its check pipeline | ✅ in place; the agent is ephemeral (ADR-0022 to 0024) |
 | Repository consistency checks (Terraform version, shared boot block) | ✅ in place (ADR-0025) |
-| Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy) | ✅ in place; Deploy has no approval or branch check yet (ADR-0026) |
+| Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy) | ✅ in place; Deploy waits for an approval on environment `pipeline-demo-dev` (ADR-0027); no branch check yet |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |

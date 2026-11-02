@@ -71,23 +71,27 @@ stages:
     dependsOn: plan
     condition: and(succeeded(), eq('${{ parameters.deploy }}', 'true'))
     jobs:
-      - job: apply
+      - deployment: apply
         displayName: Apply the reviewed plan as the apply identity
-        steps:
-          - checkout: self
-            persistCredentials: false
-          - download: current
-            artifact: tfplan
-            displayName: Download the plan file
-          - template: templates/terraform-install.yml
-            parameters:
-              version: $(terraformVersion)
-              sha256: $(terraformSha256)
-          - template: templates/terraform-azure-step.yml
-            parameters:
-              display_name: terraform init and apply
-              service_connection: sc-azure-apply-shared
-              working_directory: $(Build.SourcesDirectory)/$(rootDir)
-              script: |
-                terraform init -input=false
-                terraform apply -input=false "$(Pipeline.Workspace)/tfplan/dev.tfplan"
+        environment: pipeline-demo-dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  persistCredentials: false
+                - download: current
+                  artifact: tfplan
+                  displayName: Download the plan file
+                - template: templates/terraform-install.yml
+                  parameters:
+                    version: $(terraformVersion)
+                    sha256: $(terraformSha256)
+                - template: templates/terraform-azure-step.yml
+                  parameters:
+                    display_name: terraform init and apply
+                    service_connection: sc-azure-apply-shared
+                    working_directory: $(Build.SourcesDirectory)/$(rootDir)
+                    script: |
+                      terraform init -input=false
+                      terraform apply -input=false "$(Pipeline.Workspace)/tfplan/dev.tfplan"

@@ -3,7 +3,7 @@
 - **Status:** Proposed (accepted on merge)
 - **Date:** 2026-10-31
 - **Deciders:** platform-team (@teegalaajay)
-- **Relates to:** ADR-0005 (state backend); ADR-0013 (GitHub identities); ADR-0014 (plan on pull request); ADR-0022 (ADO identity); ADR-0023 (ADO validate); ADR-0025 (version checks); runbook `ado-terraform-deploy`
+- **Relates to:** ADR-0005 (state backend); ADR-0013 (GitHub identities); ADR-0014 (plan on pull request); ADR-0022 (ADO identity); ADR-0023 (ADO validate); ADR-0025 (version checks); ADR-0027 (approval on the Deploy environment); runbook `ado-terraform-deploy`
 
 ## Context
 
@@ -111,6 +111,10 @@ Controls that follow from the decisions:
   skipped both credentials; with the apply pair set it printed `created credential ado-sc-azure-apply-shared`
   and the evidence showed one credential on each app and no secrets or certificates.
 - The version check printed nine `ok` lines after the pipeline's two lines were added.
+- E3 test, run `#20261031.5`: the Plan stage was run with an invalid OIDC token. The Azure Storage backend
+  rejected it with `AADSTS50027` and the run failed; it did not fall back to the Azure CLI session the task leaves
+  open. The failing `plan` output did not show whether the `azurerm` provider would also have rejected the token,
+  so the provider path was not isolated by this run.
 
 ## Consequences
 
@@ -118,6 +122,7 @@ Controls that follow from the decisions:
   the artifact retention period before one does.
 - Until environments, approvals and a branch check exist, anyone who can queue the pipeline can apply unmerged
   code with Contributor at the subscription.
+  Update 2026-10-31: an approval now exists (ADR-0027); the branch check does not.
 - Plans with `-lock=false` can run next to an apply, so a plan may describe state that is about to change.
 - Every new root costs a manual `init`, entries in `apply.yml`, and a floor bump.
 - Each Terraform command signs in separately; the template costs a few seconds per command.
@@ -126,9 +131,11 @@ Controls that follow from the decisions:
 
 ## Unproven (to test, not assumed)
 
-- Whether Terraform signs in with the OIDC token or falls back to the Azure CLI session the task leaves open. Both
-  are the same identity, so green runs look identical. Test: override `ARM_OIDC_TOKEN` with an invalid value in the
-  Plan stage on a throwaway branch and see whether `init` fails.
+- Whether the `azurerm` provider (the Azure Resource Manager calls) signs in with the OIDC token or falls back to
+  the Azure CLI session the task leaves open. The backend half is observed (see Observed, E3 test). Test, reasoned
+  and not yet run: in a sandbox root with local state, set an invalid `ARM_OIDC_TOKEN` and run `terraform plan` on
+  a configuration with a data source that calls Azure Resource Manager. A failure with an `AADSTS` code means no
+  fallback; a successful plan means the provider used the CLI session.
 - That a changed state between Plan and Deploy makes `apply` refuse the saved plan.
 - The text of "Verify and save" for `sc-azure-apply-shared` (the dialog reported "saved successfully").
 - The artifact's retention period (the project setting was not read).
