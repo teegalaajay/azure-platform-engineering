@@ -27,9 +27,7 @@ stages:
       - job: validate
         displayName: fmt, init without a backend, validate
         steps:
-          - checkout: self
-            persistCredentials: false
-          - template: templates/terraform-install.yml
+          - template: templates/terraform-setup.yml   # checkout plus pinned Terraform install (ADR-0028)
             parameters:
               version: $(terraformVersion)
               sha256: $(terraformSha256)
@@ -48,9 +46,7 @@ stages:
       - job: plan
         displayName: Plan as the plan identity
         steps:
-          - checkout: self
-            persistCredentials: false
-          - template: templates/terraform-install.yml
+          - template: templates/terraform-setup.yml   # checkout plus pinned Terraform install (ADR-0028)
             parameters:
               version: $(terraformVersion)
               sha256: $(terraformSha256)
@@ -78,15 +74,13 @@ stages:
           runOnce:
             deploy:
               steps:
-                - checkout: self
-                  persistCredentials: false
-                - download: current
-                  artifact: tfplan
-                  displayName: Download the plan file
-                - template: templates/terraform-install.yml
+                - template: templates/terraform-setup.yml   # checkout plus pinned Terraform install (ADR-0028)
                   parameters:
                     version: $(terraformVersion)
                     sha256: $(terraformSha256)
+                - download: current
+                  artifact: tfplan
+                  displayName: Download the plan file
                 - template: templates/terraform-azure-step.yml
                   parameters:
                     display_name: terraform init and apply

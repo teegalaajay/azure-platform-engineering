@@ -2,6 +2,7 @@
 
 - **Status:** Proposed (accepted on merge)
 - **Date:** 2026-10-31
+- **Amended:** 2026-11-02 (Branch control check added to the environment)
 - **Deciders:** platform-team (@teegalaajay)
 - **Relates to:** ADR-0026 (the Deploy stage); ADR-0022 (service connections and permits); runbook `ado-terraform-deploy`
 
@@ -33,6 +34,11 @@ Option 1.
 - The single approver is the owner, and the owner may approve a run they started. *Cost:* no separation of duties.
   Accepted for a one-person reference platform; a team would name a different approver or a group.
 - "Grant access to all pipelines" is left off for the environment, so each pipeline needs its own permit.
+- A Branch control check on the same environment, added 2026-11-02: allowed branches `refs/heads/main`, "Verify
+  branch protection" off, timeout 1 day (the form's default). Checks run in order: Branch control (1), then All
+  approvers must approve (2). *Cost:* a deploy can only start from `main`, so a change has to be merged before it is
+  deployed and a pull request's own branch can no longer apply. The check is portal-built, like the environment.
+  "Verify branch protection" was left off because its behaviour with a GitHub repository was not tested.
 
 ## Observed (2026-10-31)
 
@@ -58,6 +64,18 @@ Option 1.
 - Retry Stage on the rejected Deploy requested a new approval; after approving it the stage was green. The `Apply
   complete!` line of that retry was not captured.
 
+## Observed (2026-11-02)
+
+- Run `#20261102.2`, started from a branch `test/branch-control` (same commit as `main`) with `deploy` ticked: Build
+  and Plan were green; Deploy showed a red X and "1/2 checks failed", the apply job was greyed out with no steps,
+  and a Retry Stage button appeared. The checks panel listed Branch control "Failed" and Approval "Canceled". No
+  approval prompt was shown. The stage was already failed when it was opened, so the 1-day timeout was not waited out.
+- Run `#20261102.3`, started from `main` with `deploy` ticked: the checks panel listed only the Approval, "Waiting
+  for approval", "Timeout in 23h" (Branch control was not shown). After Approve the apply ended with `Apply
+  complete! Resources: 0 added, 0 changed, 0 destroyed.`
+- The environment's check list showed the execution order: 1 Branch control, 2 All approvers must approve.
+
+
 ## Reasoned (not tested)
 
 - The Deploy stage after the permit failed with an empty or missing configuration in the working directory: an
@@ -69,9 +87,9 @@ Option 1.
 ## Consequences
 
 - Every apply from this pipeline now needs a click from the approver, after the plan has been published.
-- The approval does not look at the branch. A run started from a feature branch reaches the same approval and, once
-  approved, applies that branch's code with the apply identity. This is the exception recorded in ADR-0026 until a
-  Branch control check is added to the environment.
+- A run from any branch other than `main` is refused at Deploy by the Branch control check (observed 2026-11-02):
+  the Approval is cancelled and no prompt is shown. This closes the deploy-from-branch exception recorded in
+  ADR-0026. Build and Plan still run from any branch, with the plan identity.
 - The environment, its check and the permit exist only in Azure DevOps. If the environment is deleted, a manual run
   is refused until it is created again.
 - A mistyped environment name in the YAML is refused in a manual run (observed above), not silently created. Whether
@@ -79,10 +97,11 @@ Option 1.
 
 ## Unproven (to test, not assumed)
 
-- A Branch control check on the environment (restrict to `main`), and what a run from another branch shows.
 - What happens at the end of the timeout with no answer (reasoned: the stage fails).
 - Whether the approval prompt reaches the approver by email or notification.
 - Whether another pipeline naming the same environment would need its own permit.
 - Whether a permit survives deleting and recreating the environment.
 - Approver groups, and whether a team setup can forbid self-approval (an option on the check, not seen in use).
 - The `Apply complete!` line after Retry Stage.
+- What "Verify branch protection" does with a GitHub-hosted repository (left off).
+- Whether a run from a tag or a pull request ref is refused by the check; only a branch run was tried.

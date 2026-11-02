@@ -105,6 +105,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `pipelines/ado-terraform-deploy.yml`: Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy behind a `deploy` parameter) with a shared native-OIDC sign-in template and a pinned-Terraform install template; ADR-0026 and runbook `ado-terraform-deploy`.
 - `workloads/pipeline-demo/dev`: one resource group with the mandatory tags, the target of that pipeline.
 - `bootstrap/ado-oidc.sh`: apply identity `app-ado-apply-shared` (Contributor at the subscription, Storage Blob Data Contributor on the state container) and its federated credential.
+- `pipelines/templates/terraform-setup.yml`: one steps template holding the checkout and the pinned Terraform install, used by the validate, plan and apply jobs of `ado-terraform-deploy`; ADR-0028.
 
 ### Changed
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
@@ -142,6 +143,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Runbooks `ado-service-connections` and `ado-agent`: variable names updated.
 - `pipelines/ado-terraform-deploy.yml`: the Deploy stage is a `deployment:` job bound to environment `pipeline-demo-dev`, with an explicit `checkout: self` (a deployment job does not check out the repository on its own).
 - ADR-0026: records the test with an invalid OIDC token (the backend rejects it, no fallback to the Azure CLI session) and narrows the unproven item to the provider path.
+- Environment `pipeline-demo-dev` gets a Branch control check (`refs/heads/main` only) in front of the Approvals check, so a deploy can only start from `main`; ADR-0027 amended, runbook `ado-terraform-deploy` updated. Built in the portal.
+- ADR-0026 records the stale saved plan refusal (`Saved plan is stale`) as observed and drops it from the unproven list.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

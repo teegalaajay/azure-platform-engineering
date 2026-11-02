@@ -10,10 +10,9 @@
 | Pipeline definition | Azure DevOps project `azure-platform-engineering`, name `ado-terraform-deploy` | one definition for `pipelines/ado-terraform-deploy.yml`; the YAML stays in GitHub |
 | Triggers | `trigger: none`, `pr: none` | never starts from a push or a pull request (the repository is public); a person starts it |
 | Parameter | `deploy` (boolean, default `false`) | unticked: Deploy is Skipped; ticked: Deploy waits for the approval, then applies the plan |
-| Environment | `pipeline-demo-dev` (portal-built, ADR-0027) | one Approvals check, one approver, timeout 1 day; the Deploy job is a `deployment:` job that names it |
+| Environment | `pipeline-demo-dev` (portal-built, ADR-0027) | a Branch control check (`refs/heads/main` only), then one Approvals check, one approver, timeout 1 day each; the Deploy job is a `deployment:` job that names it |
 | Stages | `build`, `plan`, `deploy` | static checks without a backend; plan as the plan identity; apply the saved plan as the apply identity |
-| Templates | `pipelines/templates/terraform-install.yml`, `pipelines/templates/terraform-azure-step.yml` | pinned Terraform install; native OIDC sign-in plus one Terraform command in the same step |
-| Target root | `workloads/pipeline-demo/dev` (`rootDir` variable) | one resource group `rg-pipeline-demo-dev` |
+| Templates | `pipelines/templates/terraform-setup.yml`, `pipelines/templates/terraform-install.yml`, `pipelines/templates/terraform-azure-step.yml` | checkout plus the pinned install (it calls the install template); pinned Terraform install; native OIDC sign-in plus one Terraform command in the same step || Target root | `workloads/pipeline-demo/dev` (`rootDir` variable) | one resource group `rg-pipeline-demo-dev` |
 | Plan identity | `app-ado-plan-shared`, connection `sc-azure-plan-shared` | Reader at the subscription; Storage Blob Data Reader on the `tfstate` container |
 | Apply identity | `app-ado-apply-shared`, connection `sc-azure-apply-shared` | Contributor at the subscription; Storage Blob Data Contributor on the `tfstate` container |
 
@@ -50,7 +49,8 @@ The environment is a portal object, not Terraform (ADR-0027). Create it before t
 1. Pipelines, Environments, New environment. Name exactly `pipeline-demo-dev` (the YAML names it; a different spelling is a different environment). Resource: None.
 2. Open it, the three dots, Approvals and checks, add Approvals. Approver: the owner. Instructions: `Review the plan summary in the Plan stage before approving.` Timeout: 1 day.
 3. Leave "grant access to all pipelines" off. The first run asks for a permit for this pipeline only (observed).
-4. Check: Approvals and checks lists one row, type Approvals, timeout 1d.
+4. Add the second check: Add check, Branch control. Allowed branches `refs/heads/main`. "Verify branch protection" off. Timeout 1440 minutes (the default).
+5. Check: Approvals and checks lists two rows, in this order: Branch control (1), All approvers must approve (2).
 
 ## 4. Add a new root (every new root, once)
 
@@ -77,8 +77,9 @@ The environment is a portal object, not Terraform (ADR-0027). Create it before t
 | The Run pipeline dialog says "Environment pipeline-demo-dev could not be found. The environment does not exist or has not been authorized for use." and no run starts (observed) | the environment named in the YAML does not exist (the list was empty) | section 3a, then run again |
 | Deploy stops with "1 approval needs your review before this run can continue to Deploy", and the apply job has no steps (observed) | the Approvals check is waiting; no agent has started | open the approval and choose Approve or Reject; unanswered, it times out after 1 day |
 | Deploy shows a red X and "1 checks failed"; the run is red; the apply job never started (observed) | the approval was rejected (a Rejected approval is a failed check, not Skipped) | Retry Stage on Deploy asks for a new approval (observed), or start a new run |
-| The deploy job has no Checkout step, and `terraform apply` fails with "Inconsistent dependency lock file ... azurerm ... no version is selected" (observed) | a `deployment:` job does not check out the repository by itself | the deploy steps must start with `checkout: self` and `persistCredentials: false` (the `init` output behind the "empty directory" explanation was not captured) |
-| `terraform apply` says the saved plan is stale (expected, not yet observed) | state changed between Plan and Deploy | run the pipeline again so a new plan is published |
+| Deploy shows a red X and "1/2 checks failed"; the panel lists Branch control "Failed" and Approval "Canceled"; no approval prompt was shown (observed) | the run was started from a branch other than `main` | start the run from `main`; change the allowed branch only through an ADR-0027 amendment |
+| The deploy job has no Checkout step, and `terraform apply` fails with "Inconsistent dependency lock file ... azurerm ... no version is selected" (observed) | a `deployment:` job does not check out the repository by itself | the deploy steps must include `templates/terraform-setup.yml`, which holds `checkout: self` and `persistCredentials: false` (ADR-0028; the `init` output behind the "empty directory" explanation was not captured)
+| `terraform apply` fails with `Error: Saved plan is stale` and "the state was changed by another operation after the plan was created" (observed, also for an empty plan) | state changed between Plan and Deploy | run the pipeline again so a new plan is published; if state was changed by hand, bring it back through Terraform first |
 | `idToken: unbound variable` in a sign-in step (expected, not yet observed) | the task did not expose the ID token | check the service connection type and the task's `addSpnToEnvironment` setting |
 | `bootstrap/ado-oidc.sh` stops with `ADO_FIC_ISSUER is a retired name` (expected, not yet observed) | the old shared variables are still exported | `unset ADO_FIC_ISSUER ADO_FIC_SUBJECT`, then set the pair for the one connection |
 | Plan leg of the GitHub plan workflow is red for a new root (expected, not yet observed) | the state blob does not exist yet | section 4, steps 2 and 3 |
