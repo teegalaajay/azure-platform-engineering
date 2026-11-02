@@ -120,6 +120,17 @@ Controls that follow from the decisions:
   A banner says the artifacts setting is ignored because the runs setting is evaluated first. Reasoned: the `tfplan`
   artifact lasts as long as its run; the effect of "recent runs to retain" on older runs was not tested.
 
+## Observed (2026-11-02)
+
+- Stale saved plan. Run `#20261102.1` with `deploy` ticked: the Plan stage ended `No changes`, and Deploy waited at the
+  approval. While it waited, state was changed from the workstation: a tag was added to the resource group with
+  `az group update`, then `terraform apply -refresh-only` wrote it into state (`0 added, 0 changed, 0 destroyed`),
+  which raised the state serial. After Approve, the `terraform apply` step failed with `Error: Saved plan is
+  stale` and "The given plan file can no longer be applied because the state was changed by another operation
+  after the plan was created." The refusal happened although the saved plan was empty. Recovery: a plain
+  `terraform plan -out` from the workstation showed `1 to change` (the tag removed), `terraform apply` of that
+  file removed it, and a plain plan then showed `No changes`.
+
 ## Consequences
 
 - A saved plan file is secret-bearing in principle. This root has no sensitive values, but later roots may; shorten
@@ -127,6 +138,7 @@ Controls that follow from the decisions:
 - Until environments, approvals and a branch check exist, anyone who can queue the pipeline can apply unmerged
   code with Contributor at the subscription.
   Update 2026-10-31: an approval now exists (ADR-0027); the branch check does not.
+  Update 2026-11-02: a Branch control check now exists (ADR-0027); a deploy can start only from `main`.
 - Plans with `-lock=false` can run next to an apply, so a plan may describe state that is about to change.
 - Every new root costs a manual `init`, entries in `apply.yml`, and a floor bump.
 - Each Terraform command signs in separately; the template costs a few seconds per command.
@@ -140,7 +152,6 @@ Controls that follow from the decisions:
   and not yet run: in a sandbox root with local state, set an invalid `ARM_OIDC_TOKEN` and run `terraform plan` on
   a configuration with a data source that calls Azure Resource Manager. A failure with an `AADSTS` code means no
   fallback; a successful plan means the provider used the CLI session.
-- That a changed state between Plan and Deploy makes `apply` refuse the saved plan.
 - The text of "Verify and save" for `sc-azure-apply-shared` (the dialog reported "saved successfully").
 - That the GitHub plan workflow's leg for the new root passes (read-only access to an existing blob is expected).
 - That the version check fails when this pipeline's version line differs (only the pass was observed).
