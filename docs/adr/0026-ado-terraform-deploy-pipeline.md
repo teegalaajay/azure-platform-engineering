@@ -115,11 +115,15 @@ Controls that follow from the decisions:
   rejected it with `AADSTS50027` and the run failed; it did not fall back to the Azure CLI session the task leaves
   open. The failing `plan` output did not show whether the `azurerm` provider would also have rejected the token,
   so the provider path was not isolated by this run.
+  - Project settings, Pipelines, Settings, Retention policy (screenshot 2026-11-01): days to keep artifacts, symbols
+  and attachments 30; days to keep runs 30; days to keep pull request runs 10; recent runs to retain per pipeline 3.
+  A banner says the artifacts setting is ignored because the runs setting is evaluated first. Reasoned: the `tfplan`
+  artifact lasts as long as its run; the effect of "recent runs to retain" on older runs was not tested.
 
 ## Consequences
 
 - A saved plan file is secret-bearing in principle. This root has no sensitive values, but later roots may; shorten
-  the artifact retention period before one does.
+  the run retention (the artifact setting is ignored, see Observed) before one does.
 - Until environments, approvals and a branch check exist, anyone who can queue the pipeline can apply unmerged
   code with Contributor at the subscription.
   Update 2026-10-31: an approval now exists (ADR-0027); the branch check does not.
@@ -138,7 +142,6 @@ Controls that follow from the decisions:
   fallback; a successful plan means the provider used the CLI session.
 - That a changed state between Plan and Deploy makes `apply` refuse the saved plan.
 - The text of "Verify and save" for `sc-azure-apply-shared` (the dialog reported "saved successfully").
-- The artifact's retention period (the project setting was not read).
 - That the GitHub plan workflow's leg for the new root passes (read-only access to an existing blob is expected).
 - That the version check fails when this pipeline's version line differs (only the pass was observed).
 - That a fork or a pull request cannot start the pipeline (`trigger: none`, `pr: none`; not tested from a fork).
