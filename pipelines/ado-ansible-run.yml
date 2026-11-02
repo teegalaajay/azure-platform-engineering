@@ -46,8 +46,23 @@ steps:
       SSH_KEY: $(ansible-pipeline-ssh-key)          # secret variable, passed as an environment variable
       AGENT_TEMP: $(Agent.TempDirectory)
 
-  - bash: rm -f "$AGENT_TEMP/ansible_key"
-    displayName: Remove the key file
+  - bash: |
+      set -euo pipefail
+      [[ "$TARGET_HOST" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "targetHost must be a 10.10.1.x address"; exit 1; }
+      "$AGENT_TEMP/ansible-venv/bin/ansible" all -i "$TARGET_HOST," -u azureuser \
+        --private-key "$AGENT_TEMP/ansible_key" \
+        --ssh-common-args "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$AGENT_TEMP/known_hosts" \
+        -m ansible.builtin.ping
+    displayName: Ansible ping the target
+    env:
+      TARGET_HOST: ${{ parameters.targetHost }}       # compile time: written into this YAML before the run
+      AGENT_TEMP: $(Agent.TempDirectory)
+
+  - bash: |
+      set -euo pipefail
+      rm -f "$AGENT_TEMP/ansible_key"
+      test ! -e "$AGENT_TEMP/ansible_key"
+    displayName: Remove the key file and check it is gone
     condition: always()                             # runs even when an earlier step failed
     env:
       AGENT_TEMP: $(Agent.TempDirectory)
