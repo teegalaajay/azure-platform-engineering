@@ -56,6 +56,7 @@ steps:
     displayName: Ansible ping the target
     env:
       TARGET_HOST: ${{ parameters.targetHost }}       # compile time: written into this YAML before the run
+      ANSIBLE_CONFIG: $(Build.SourcesDirectory)/ansible/ansible-pipeline.cfg   # skip the root vault config
       AGENT_TEMP: $(Agent.TempDirectory)
 
   - bash: |
