@@ -99,6 +99,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0024 (identity, secret access and module structure for the agent) and runbook `ado-agent` with the boot-log diagnosis ladder.
 - `.terraform-version` (single source for the Terraform version) and two consistency checks in `scripts/` (`check-terraform-version.sh`, `check-cloud-init-drift.sh`), run as pre-commit hooks and as a step of the `validate` workflow's `discover` job; ADR-0025; runbook `ci-validate` section 7.
 - Azure DevOps pipeline `ado-agent-check` (`pipelines/ado-agent-check.yml`): manual runs on `pool-platform-shared`; proves the job runs as the non-root `agent` user and that the VM's managed identity lists Key Vault secret names (no values). Observed results added to ADR-0024; runbook `ado-agent` gains the permit step and a symptom row for a read-only subscription.
+- Azure DevOps environment `pipeline-demo-dev` with an Approvals check (one approver, timeout 1 day) in front of the Deploy stage; ADR-0027. The environment is built in the portal and described in runbook `ado-terraform-deploy`.
 - `bootstrap/ado-agent-fic.sh`: idempotent script that creates the federated credential on `id-ado-agent-shared` from the issuer and subject of the draft service connection (ADR-0024).
 - `ado-agent-check` reads one test secret value through the service connection `sc-azure-keyvault-shared` and checks its length; runbook `ado-agent` section 6 and ADR-0024 record what was observed.
 - `pipelines/ado-terraform-deploy.yml`: Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy behind a `deploy` parameter) with a shared native-OIDC sign-in template and a pinned-Terraform install template; ADR-0026 and runbook `ado-terraform-deploy`.
@@ -139,6 +140,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Discovery floors now equal the real counts: `plan.yml` 12 roots with a backend; `validate.yml` and `pipelines/ado-terraform-validate.yml` 17 Terraform directories.
 - `scripts/check-terraform-version.sh`: covers `pipelines/ado-terraform-deploy.yml`.
 - Runbooks `ado-service-connections` and `ado-agent`: variable names updated.
+- `pipelines/ado-terraform-deploy.yml`: the Deploy stage is a `deployment:` job bound to environment `pipeline-demo-dev`, with an explicit `checkout: self` (a deployment job does not check out the repository on its own).
+- ADR-0026: records the test with an invalid OIDC token (the backend rejects it, no fallback to the Azure CLI session) and narrows the unproven item to the provider path.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

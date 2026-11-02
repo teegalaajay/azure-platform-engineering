@@ -3,7 +3,7 @@
 - **Status:** Proposed (accepted on merge)
 - **Date:** 2026-10-31
 - **Deciders:** platform-team (@teegalaajay)
-- **Relates to:** ADR-0005 (state backend); ADR-0013 (GitHub identities); ADR-0014 (plan on pull request); ADR-0022 (ADO identity); ADR-0023 (ADO validate); ADR-0025 (version checks); runbook `ado-terraform-deploy`
+- **Relates to:** ADR-0005 (state backend); ADR-0013 (GitHub identities); ADR-0014 (plan on pull request); ADR-0022 (ADO identity); ADR-0023 (ADO validate); ADR-0025 (version checks); ADR-0027 (approval on the Deploy environment); runbook `ado-terraform-deploy`
 
 ## Context
 
@@ -122,6 +122,7 @@ Controls that follow from the decisions:
   the artifact retention period before one does.
 - Until environments, approvals and a branch check exist, anyone who can queue the pipeline can apply unmerged
   code with Contributor at the subscription.
+  Update 2026-10-31: an approval now exists (ADR-0027); the branch check does not.
 - Plans with `-lock=false` can run next to an apply, so a plan may describe state that is about to change.
 - Every new root costs a manual `init`, entries in `apply.yml`, and a floor bump.
 - Each Terraform command signs in separately; the template costs a few seconds per command.
