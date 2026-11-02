@@ -1,0 +1,17 @@
+# Checkout plus the pinned Terraform install: the two things every Terraform job in this repo starts with (ADR-0028).
+# Names no version itself: the calling pipeline passes the version and the SHA-256 in (ADR-0026).
+# A deployment job does not check out the repository on its own, so the checkout lives here and
+# is not left to the caller to remember (observed on Week 6 Day 2).
+parameters:
+  - name: version               # MAJOR.MINOR.PATCH, from the pipeline's own variables
+    type: string
+  - name: sha256                # hash of terraform_<version>_linux_amd64.zip from HashiCorp's signed SHA256SUMS
+    type: string
+
+steps:
+  - checkout: self
+    persistCredentials: false   # the checkout leaves no repository token in .git for later steps to read
+  - template: terraform-install.yml   # a path inside a template is relative to this file's own folder
+    parameters:
+      version: ${{ parameters.version }}   # compile time: replaced with the caller's value before the run starts
+      sha256: ${{ parameters.sha256 }}
