@@ -29,20 +29,25 @@ steps:
       AGENT_TEMP: $(Agent.TempDirectory)   # a per-job folder the agent clears afterwards
 
   - task: AzureKeyVault@2
-    displayName: Test - multi-line secret canary
+    displayName: Read the pipeline SSH key
     inputs:
       azureSubscription: sc-azure-keyvault-shared   # the Key Vault reader connection (ADR-0024)
       KeyVaultName: kv-plat-shared-at01
-      SecretsFilter: ado-multiline-canary           # one named secret, never '*'
+      SecretsFilter: ansible-pipeline-ssh-key       # one named secret, never '*'
       RunAsPreJob: false                            # fetch at this step, not before the job starts
 
   - bash: |
       set -euo pipefail
-      echo "length: ${#CANARY}"
-      echo -n "lines:  "; printf '%s' "$CANARY" | grep -c ''
-      printf '%s' "$CANARY" | cat -A
-      echo "--- plain echo:"
-      echo "$CANARY"
-    displayName: Test - what the agent received
+      umask 077                                     # files created below are readable by the agent user only
+      printf '%s' "$SSH_KEY" > "$AGENT_TEMP/ansible_key"
+      ssh-keygen -y -f "$AGENT_TEMP/ansible_key" | ssh-keygen -lf -   # fails if unreadable; prints fingerprint
+    displayName: Write the key to a private file and check it
     env:
-      CANARY: $(ado-multiline-canary)
+      SSH_KEY: $(ansible-pipeline-ssh-key)          # secret variable, passed as an environment variable
+      AGENT_TEMP: $(Agent.TempDirectory)
+
+  - bash: rm -f "$AGENT_TEMP/ansible_key"
+    displayName: Remove the key file
+    condition: always()                             # runs even when an earlier step failed
+    env:
+      AGENT_TEMP: $(Agent.TempDirectory)
