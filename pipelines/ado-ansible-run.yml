@@ -51,7 +51,7 @@ steps:
       [[ "$TARGET_HOST" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "targetHost must be a 10.10.1.x address"; exit 1; }
       "$AGENT_TEMP/ansible-venv/bin/ansible" all -i "$TARGET_HOST," -u azureuser \
         --private-key "$AGENT_TEMP/ansible_key" \
-        --ssh-common-args "-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$AGENT_TEMP/known_hosts" \
+        --ssh-common-args="-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$AGENT_TEMP/known_hosts" \
         -m ansible.builtin.ping
     displayName: Ansible ping the target
     env:
