@@ -50,6 +50,7 @@ write_files:
       apt-get update
       apt-get install -y azure-cli "terraform=$TERRAFORM_VERSION-1"
       apt-mark hold terraform
+      apt-get install -y python3-venv
 
       id agent >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --user-group agent
       install -d -o agent -g agent -m 755 /opt/ado-agent

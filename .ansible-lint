@@ -5,5 +5,8 @@ profile: production
 
 # Scope: only the ansible/ tree is Ansible content. GitHub workflow files are recognised by
 # ansible-lint and would be linted too; they have their own gates (yamllint, actionlint).
+# Azure DevOps pipelines under pipelines/ are YAML, not Ansible; yamllint and the Azure DevOps
+# parser gate them (ADR-0021, amended in the Day 4 PR).
 exclude_paths:
   - .github/
+  - pipelines/

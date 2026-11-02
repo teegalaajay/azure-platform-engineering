@@ -1,0 +1,2 @@
+# Pipeline Ansible dependency. Same pin as ansible-core in requirements.txt; the pipeline asserts they are equal.
+ansible-core==2.21.5

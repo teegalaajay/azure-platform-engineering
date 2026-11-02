@@ -1,0 +1,29 @@
+# Ansible stage on the self-hosted agent (Week 6 Day 4). Manual runs only: the repository is public, so no push
+# and no pull request may start a run that can hold a service connection (ADR-0026).
+trigger: none
+pr: none
+
+parameters:
+  - name: targetHost
+    displayName: Private IP of the Ansible target
+    type: string                # no default: a person must enter it
+
+pool:
+  name: pool-platform-shared    # the self-hosted pool; the job waits here if the agent is offline
+
+steps:
+  - checkout: self
+    clean: true                 # a self-hosted agent keeps its work folder between runs; start from a clean copy
+    persistCredentials: false   # the Git token is not left in .git/config for later steps
+
+  - bash: |
+      set -euo pipefail
+      python3 -m venv "$AGENT_TEMP/ansible-venv"
+      "$AGENT_TEMP/ansible-venv/bin/pip" install -r ansible/requirements-pipeline.txt -c ansible/constraints.txt
+      want=$(sed -n 's/^ansible-core==//p' ansible/requirements.txt)
+      got=$("$AGENT_TEMP/ansible-venv/bin/pip" show ansible-core | sed -n 's/^Version: //p')
+      echo "ansible-core wanted: $want, installed: $got"
+      test "$want" = "$got"
+    displayName: Install pinned Ansible into a venv
+    env:
+      AGENT_TEMP: $(Agent.TempDirectory)   # a per-job folder the agent clears afterwards
