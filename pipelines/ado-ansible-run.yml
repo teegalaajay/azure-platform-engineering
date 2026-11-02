@@ -61,6 +61,25 @@ steps:
 
   - bash: |
       set -euo pipefail
+      [[ "$TARGET_HOST" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "targetHost must be a 10.10.1.x address"; exit 1; }
+      play() {
+        "$AGENT_TEMP/ansible-venv/bin/ansible-playbook" ansible/site.yml -i "$TARGET_HOST," -u azureuser \
+          --private-key "$AGENT_TEMP/ansible_key" \
+          --ssh-common-args="-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$AGENT_TEMP/known_hosts"
+      }
+      echo "=== run 1: apply the role"
+      play
+      echo "=== run 2: must change nothing"
+      play | tee "$AGENT_TEMP/run2.log"
+      grep -Eq 'changed=0 +unreachable=0 +failed=0' "$AGENT_TEMP/run2.log"
+    displayName: Run site.yml twice and check the second run changes nothing
+    env:
+      TARGET_HOST: ${{ parameters.targetHost }}       # compile time: written into this YAML before the run
+      ANSIBLE_CONFIG: $(Build.SourcesDirectory)/ansible/ansible-pipeline.cfg
+      AGENT_TEMP: $(Agent.TempDirectory)
+
+  - bash: |
+      set -euo pipefail
       rm -f "$AGENT_TEMP/ansible_key"
       test ! -e "$AGENT_TEMP/ansible_key"
     displayName: Remove the key file and check it is gone
