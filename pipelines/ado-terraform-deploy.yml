@@ -104,8 +104,8 @@ stages:
                         working_directory: $(Build.SourcesDirectory)/$(rootDir)
                         step_name: targetOutputs
                         script: |
-                          read -r host < <(terraform output -raw target_host)
-                          read -r user < <(terraform output -raw target_user)
+                          read -r host < <(terraform output -raw target_host) || [[ -n "$host" ]]
+                          read -r user < <(terraform output -raw target_user) || [[ -n "$user" ]]
                           [[ "$host" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "bad target_host"; exit 1; }
                           [[ "$user" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "bad target_user"; exit 1; }
                           echo "##vso[task.setvariable variable=targetHost;isOutput=true]$host"
