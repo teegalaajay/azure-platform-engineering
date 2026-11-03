@@ -113,6 +113,7 @@ This is the target design; section 7 shows what is built today.
 | [0028](docs/adr/0028-ado-terraform-setup-template.md) | One setup template for the checkout and the pinned Terraform install, used by all three jobs |
 | [0029](docs/adr/0029-ansible-stage-on-the-agent.md) | Ansible stage on the self-hosted agent: platform target root, standalone pipeline, per-run Ansible install, Key Vault SSH key, host-key trust |
 | [0030](docs/adr/0030-e2e-terraform-to-ansible-pipeline.md) | Provision and configure the Ansible target in one pipeline run: allowlisted root parameter, job output variable, `configure` job in the Deploy stage, shared Ansible step template |
+| [0031](docs/adr/0031-handoff-artifact.md) | Hand the Terraform output to Ansible through a pipeline artifact: a four-field JSON file replaces the job output variable and is read before the shared Ansible template |
 
 ## 7. Status
 

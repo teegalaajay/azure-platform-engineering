@@ -1,6 +1,7 @@
 # ADR-0030: Provision and configure the Ansible target in one pipeline run
 
 - **Status:** Accepted (amended 2026-11-03 after the proof runs from `main`)
+- **Amended by:** ADR-0031 replaces option 2a (the job output variable) with a pipeline artifact; the rest stands.
 - **Date:** 2026-11-03
 - **Deciders:** platform-team (@teegalaajay)
 - **Relates to:** ADR-0029 (the Ansible steps and the target); ADR-0026 (the multi-stage pipeline, manual runs only,

@@ -156,6 +156,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `pipelines/templates/ansible-site-steps.yml`: the Ansible steps of `ado-ansible-run`, moved into a template with `targetHost` and `targetUser` (default `azureuser`, checked). `ado-ansible-run.yml` now calls it.
 - `pipelines/templates/terraform-azure-step.yml`: optional `step_name` parameter, so a later job can read the step's output variables.
 - Runbooks `ado-terraform-deploy` (section 4 step 5, new section 5a) and `ansible-target` (section 3 item 4) updated.
+- `pipelines/ado-terraform-deploy.yml`: the target address and user reach the `configure` job as a pipeline artifact (`handoff`, a four-field JSON file) instead of two job output variables; the job output step and its addressing are removed. ADR-0031 (replaces option 2a of ADR-0030); runbook `ado-terraform-deploy` section 5a updated.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
