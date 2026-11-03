@@ -10,9 +10,14 @@ parameters:
     type: string
   - name: script                # the shell commands to run once signed in
     type: string
+  - name: step_name             # optional; set it when a later job reads this step's output variables
+    type: string
+    default: ''
 
 steps:
   - task: AzureCLI@2
+    ${{ if ne(parameters.step_name, '') }}:
+      name: ${{ parameters.step_name }}
     displayName: ${{ parameters.display_name }}
     inputs:
       azureSubscription: ${{ parameters.service_connection }}

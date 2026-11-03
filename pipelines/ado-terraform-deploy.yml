@@ -10,6 +10,13 @@ parameters:
     displayName: Run the Deploy stage (changes Azure)
     type: boolean
     default: false              # a person must tick it; the stage is Skipped otherwise (ADR-0026)
+  - name: terraformRoot
+    displayName: Terraform root to build, plan and deploy
+    type: string
+    default: workloads/pipeline-demo/dev
+    values:
+      - workloads/pipeline-demo/dev
+      - workloads/ansible-target/dev
 
 pool:
   vmImage: ubuntu-24.04         # pinned image, same as ado-terraform-validate; a bump is a reviewed change
@@ -18,7 +25,7 @@ variables:
   terraformVersion: 1.16.4      # the only Terraform version named in this pipeline (ADR-0025 check)
   # Hash of terraform_1.16.4_linux_amd64.zip from the SHA256SUMS signed by HashiCorp, verified 2026-10-28.
   terraformSha256: dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df
-  rootDir: workloads/pipeline-demo/dev   # the one Terraform root this pipeline deploys
+  rootDir: ${{ parameters.terraformRoot }}   # compile time; the three $(rootDir) uses below stay unchanged
 
 stages:
   - stage: build
@@ -89,3 +96,31 @@ stages:
                     script: |
                       terraform init -input=false
                       terraform apply -input=false "$(Pipeline.Workspace)/tfplan/dev.tfplan"
+                - ${{ if eq(parameters.terraformRoot, 'workloads/ansible-target/dev') }}:
+                    - template: templates/terraform-azure-step.yml
+                      parameters:
+                        display_name: Publish the target address as a job output
+                        service_connection: sc-azure-apply-shared
+                        working_directory: $(Build.SourcesDirectory)/$(rootDir)
+                        step_name: targetOutputs
+                        script: |
+                          read -r host < <(terraform output -raw target_host)
+                          read -r user < <(terraform output -raw target_user)
+                          [[ "$host" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "bad target_host"; exit 1; }
+                          [[ "$user" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "bad target_user"; exit 1; }
+                          echo "##vso[task.setvariable variable=targetHost;isOutput=true]$host"
+                          echo "##vso[task.setvariable variable=targetUser;isOutput=true]$user"
+      - ${{ if eq(parameters.terraformRoot, 'workloads/ansible-target/dev') }}:
+          - job: configure
+            displayName: Configure the target with Ansible from the self-hosted agent
+            dependsOn: apply
+            pool:
+              name: pool-platform-shared    # the agent in snet-mgmt; the hosted image cannot reach snet-app
+            variables:
+              targetHost: $[ dependencies.apply.outputs['deploy.targetOutputs.targetHost'] ]
+              targetUser: $[ dependencies.apply.outputs['deploy.targetOutputs.targetUser'] ]
+            steps:
+              - template: templates/ansible-site-steps.yml
+                parameters:
+                  targetHost: $(targetHost)    # runtime macro: the value exists only after apply
+                  targetUser: $(targetUser)

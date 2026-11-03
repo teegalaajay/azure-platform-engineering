@@ -40,6 +40,7 @@ Statements marked *observed* were seen on 2026-11-02; *reasoned* means derived, 
    dialog names only that item.
 3. A green run means: Ansible installed at the pinned version; the key matched the recorded fingerprint; run 1 applied
    the role; run 2 reported `changed=0 unreachable=0 failed=0`; the key file was removed and checked.
+4. Since Week 6 Day 5 the same steps also run as the job `configure` in the Deploy stage of `ado-terraform-deploy`, with the address read from the Terraform output instead of typed (ADR-0030; runbook `ado-terraform-deploy`, section 5a). `ado-ansible-run` stays for running Ansible alone against a target that already exists.
 
 ## 4. Verify the result (from inside the VM)
 
