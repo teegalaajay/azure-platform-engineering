@@ -117,8 +117,8 @@ stages:
             pool:
               name: pool-platform-shared    # the agent in snet-mgmt; the hosted image cannot reach snet-app
             variables:
-              targetHost: $[ dependencies.apply.outputs['deploy.targetOutputs.targetHost'] ]
-              targetUser: $[ dependencies.apply.outputs['deploy.targetOutputs.targetUser'] ]
+              targetHost: $[ dependencies.apply.outputs['apply.targetOutputs.targetHost'] ]
+              targetUser: $[ dependencies.apply.outputs['apply.targetOutputs.targetUser'] ]
             steps:
               - template: templates/ansible-site-steps.yml
                 parameters:
