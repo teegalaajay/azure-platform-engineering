@@ -1,6 +1,6 @@
 # ADR-0030: Provision and configure the Ansible target in one pipeline run
 
-- **Status:** Proposed (accepted on merge)
+- **Status:** Accepted (amended 2026-11-03 after the proof runs from `main`)
 - **Date:** 2026-11-03
 - **Deciders:** platform-team (@teegalaajay)
 - **Relates to:** ADR-0029 (the Ansible steps and the target); ADR-0026 (the multi-stage pipeline, manual runs only,
@@ -43,15 +43,19 @@ Option (a) in every case.
 2. **A job output variable.** The step `targetOutputs`, after `apply`, reads `target_host` and `target_user` with
    `terraform output -raw`, checks the address against `10.10.1.x` and the user against a plain-name pattern, and only
    then prints two `##vso[task.setvariable ...;isOutput=true]` lines. It uses `read -r x < <(...)` and not `$(...)`, so
-   the macro scanner (ADR-0028) has nothing to match. The shared step template gained an optional `step_name` parameter:
-   an output is addressed by step name, and an empty value leaves out the `name:` key, so Build and Plan are unchanged.
+   the macro scanner (ADR-0028) has nothing to match. `terraform output -raw` prints no trailing newline, and `read`
+   then returns 1 at end of input; under `set -e` that ended the step silently in the first proof run. The fix is
+   `read -r x < <(...) || [[ -n "$x" ]]`, tested locally in three cases before it was pushed (PR #44).
+   The shared step template gained an optional `step_name` parameter: an output is addressed by step name, and an empty value leaves out the `name:` key, so Build and Plan are unchanged.
    *Cost:* the address is validated in the producer and again in the consumer, two copies of one rule. Option (b) was
    rejected because the Ansible job would need Terraform, a sign-in and a state read on the agent; option (c) is Week 7
    Day 1.
 3. **A second job in the Deploy stage.** `configure` has `dependsOn: apply`, its own `pool: pool-platform-shared`, and
-   reads the outputs with `dependencies.apply.outputs['deploy.targetOutputs.targetHost']` (and `targetUser`). The only
-   documented form I read for the output of a deployment job (Microsoft Learn, Azure DevOps sprint 164 release notes)
-   is for jobs in the same stage; no cross-stage form was read, so a separate stage was not used.
+   reads the outputs with `dependencies.apply.outputs['apply.targetOutputs.targetHost']` (and `targetUser`): the job
+   name, then the step name. The form first written, `deploy.targetOutputs...` (the lifecycle-hook name, from the
+   Microsoft release notes for sprint 164), failed in a proof run: the consumer printed no value and Ansible stopped
+   at the ping. The job-name form worked in the next run. Why the first form did not resolve is an inference, not
+   proven. No cross-stage form was read, so a separate stage was not used.
    *Cost:* the Deploy stage holds two kinds of work and one condition (the `deploy` box) covers both. `configure` is a
    plain job: Branch control (ADR-0027) protects the environment, not this job, so a changed YAML on another branch
    could point the job at the agent and the Key Vault connection. The pipeline therefore needs permits on
@@ -88,6 +92,24 @@ Option (a) in every case.
   `Remove the key file…`. The pipeline now runs through the shared template. A `Pre-job: Read the pipeline SSH key`
   entry appears with a different icon from the other steps; the cause is not known.
 
+## Observed after the merge (2026-11-03, from `main`)
+
+- **Permits:** the permit dialogs for `ado-terraform-deploy` on `pool-platform-shared` and on
+  `sc-azure-keyvault-shared` were shown and granted in the portal. The approval on `pipeline-demo-dev` was asked.
+- **Failure 1 (publish step):** the output step ended without a message. Cause: the missing newline above; fixed in
+  PR #44.
+- **Failure 2 (Ansible ping):** the consumer received no address. Fix: the job-name path above and checks that print
+  the received values (PR #45).
+- **Proof run from an empty layer:** the plan ended `Plan: 7 to add, 0 to change, 0 to destroy.`; the apply ran as the
+  apply identity from `main`; `configure` ran Ansible against `10.10.1.11`, the address Terraform produced. Run 1
+  recap `ok=6 changed=4`, run 2 `changed=0`. A `terraform plan` from the workstation afterwards printed `No changes`.
+- **Re-run on the live target:** the plan printed `No changes. Your infrastructure matches the configuration.`; the
+  apply printed `Apply complete! Resources: 0 added, 0 changed, 0 destroyed.`; the publish step finished; `configure`
+  run 1 and run 2 both ended `ok=5 changed=0 unreachable=0 failed=0`. Whether the approval was asked on this run was
+  not recorded.
+- **Teardown:** `terraform destroy` of the target printed `Destroy complete! Resources: 7 destroyed.`; the agent root
+  printed `Resources: 0 added, 0 changed, 7 destroyed.`; `az group exists` printed `false` for both resource groups.
+
 ## Reasoned (not tested)
 
 - With root `workloads/pipeline-demo/dev` neither the output step nor `configure` is compiled, because both conditions
@@ -96,11 +118,12 @@ Option (a) in every case.
   the consumer's address check fails with a readable message.
 - A value outside the `values:` list is refused when the run is queued; a typed value was not tried.
 
-## Not tested (updated after the proof run from `main`)
+## Not tested
 
-That `deploy.targetOutputs.targetHost` resolves; that the agent registers output commands printed inside `AzureCLI@2`;
-the permits for this pipeline on the pool and on `sc-azure-keyvault-shared`; the Deploy stage from `main`; the apply as
-the apply identity creating the 7 resources; a second Deploy run; a failing `configure` after a successful `apply`.
+A failing `configure` after a successful `apply`; a run started from a tag or a pull request ref against Branch
+control; a run with root `workloads/pipeline-demo/dev` after this change (compile-only reasoning above); whether the
+apply workflow in GitHub is guarded against the Ansible root other than by `SKIP_ROOTS`; why the Ansible job shows a
+`Pre-job: Read the pipeline SSH key` entry with a different icon.
 
 ## Consequences
 

@@ -161,3 +161,5 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
   tags (it previously checked key presence only, so `owner = null` or `""` passed).
 - Runbook `ado-service-connections`: the symptom row for the OAuth consent screen no longer says it means no GitHub connection exists; the wizard asks for OAuth for each new pipeline, also when the App connection exists (observed 2026-10-29).
+- `pipelines/ado-terraform-deploy.yml`: the output step no longer ends silently when `terraform output -raw` prints no trailing newline (`read -r x < <(...) || [[ -n "$x" ]]`).
+- `pipelines/ado-terraform-deploy.yml`, `pipelines/templates/ansible-site-steps.yml`: `configure` reads the outputs as `dependencies.apply.outputs['apply.targetOutputs.<name>']` (the `deploy.` form did not resolve), and the address and user checks print the value they received. ADR-0030 amended.

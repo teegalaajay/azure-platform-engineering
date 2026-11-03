@@ -72,7 +72,7 @@ The environment is a portal object, not Terraform (ADR-0027). Create it before t
 Pre-flight, each as its own command:
 
 1. `az group exists --name rg-ado-agent-shared` prints `true` and the agent shows Online in `pool-platform-shared`; the `configure` job waits for it.
-2. For a build from nothing the target must not exist: `az group exists --name rg-ansible-target-dev` prints `false` (take it down with runbook `ansible-target`, section 6). If it exists, the run plans only the new outputs (observed 2026-11-03).
+2. For a build from nothing the target must not exist: `az group exists --name rg-ansible-target-dev` prints `false` (take it down with runbook `ansible-target`, section 6). If it exists, the run plans only the new outputs (observed 2026-11-03). If it exists and is already configured, the plan is `No changes`, the apply changes nothing and both Ansible runs report `changed=0` (observed 2026-11-03).
 
 Run:
 
@@ -81,12 +81,13 @@ Run:
 3. Deploy: Branch control passes on `main`, then "1 approval needs your review"; approve.
 4. The `apply` job creates the root; its last step, `Publish the target address as a job output`, publishes `targetHost` and `targetUser`.
 5. `configure` starts on the agent: pinned Ansible venv, key from Key Vault, ping, `site.yml` twice (the second run must report `changed=0`), key file removed.
-6. The first run is expected to ask for a permit on `pool-platform-shared` and on `sc-azure-keyvault-shared` for this pipeline (observed for `ado-ansible-run`, ADR-0029; not yet observed for this pipeline).
+6. The first run is expected to ask for a permit on `pool-platform-shared` and on `sc-azure-keyvault-shared` for this pipeline (observed for `ado-ansible-run`, ADR-0029, and for this pipeline on 2026-11-03).
 7. Check from the workstation, in the root: `terraform plan` prints `No changes`; `terraform output target_host` prints `10.10.1.11`.
 
-Symptoms (reasoned until observed):
+Symptoms (the first two observed on 2026-11-03, the others reasoned):
 
-- `targetHost must be a 10.10.1.x address` in the first Ansible step: the output was not published. Open `Publish the target address as a job output` in the `apply` job. If that step does not exist, the chosen root was not `workloads/ansible-target/dev`.
+- `Publish the target address as a job output` ends red with no message: `terraform output -raw` prints no trailing newline, `read` then returns 1, and `set -e` stops the step. The step reads with `read -r x < <(...) || [[ -n "$x" ]]`.
+- `targetHost must be a 10.10.1.x address` in the first Ansible step; the message prints the value it received. An empty value or literal macro text means the output was not read: the path must be `dependencies.apply.outputs['apply.targetOutputs.<name>']`, and the `deploy.` form failed this way. Otherwise the output was not published. Open `Publish the target address as a job output` in the `apply` job. If that step does not exist, the chosen root was not `workloads/ansible-target/dev`.
 - `configure` waits for an agent: the agent is not Online (runbook `ado-agent`).
 - The Deploy stage shows only `apply`: the root chosen was `workloads/pipeline-demo/dev`; `configure` is compiled only for the Ansible root.
 
