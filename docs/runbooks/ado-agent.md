@@ -97,3 +97,16 @@ The Agents tab says only that no registration arrived. Read the VM's own records
 - **Change the boot script:** edit `modules/ado-agent-vm`; the plan shows the VM as `forces replacement` because `custom_data` changed (observed 2026-10-29).
 - **Bump the agent:** change `agent_version` and `agent_sha256` together; verify the hash against the release page before the apply.
 - **Anything done by hand on the VM** must be folded back into Terraform or cloud-init before the day counts as done.
+
+## 9. Pipelines that use this agent (added 2026-11-02)
+
+- `ado-agent-check` reads `ado-check-canary`; `ado-ansible-run` (ADR-0029, runbook `ansible-target`) runs the `web` role
+  against `workloads/ansible-target/dev`. Each pipeline needs its own permit on `pool-platform-shared`, and a second
+  permit on `sc-azure-keyvault-shared` the first time it reads Key Vault (observed 2026-11-02).
+- Cloud-init installs `python3-venv` after the shared block. Without it `python3 -m venv` fails on this image with exit
+  code 1 (`ensurepip` missing; observed). Pipelines create their own venv per run and install nothing system-wide, because
+  the agent runs as the non-root user `agent`.
+- The agent cannot be live together with `platform/runner`, and the target's NAT Gateway sits on `snet-app`, a different
+  subnet, so the agent and the target can be live together (observed 2026-11-02).
+- Last validated for this use: 2026-11-02 (agent rebuilt from the feature branch, Online, ran four pipeline runs, nginx
+  configured on the target).

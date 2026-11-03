@@ -34,3 +34,10 @@ Option 1. The target is Terraform in `azure-iac-sandbox` (`w4d1-ansible-target`)
 ## Deferred
 
 The platform `ansible-target` in `snet-app` is built when an in-network control path exists: the ADO agent (Week 5 Day 5 / Week 6 Day 4) or Bastion (Week 8, open item 30).
+
+## Amendment 2026-11-02: the platform target is built
+
+The deferred platform target now exists as `workloads/ansible-target/dev`: a VM in `snet-app` with no public IP, configured
+from the self-hosted agent through the pipeline `ado-ansible-run` (ADR-0029). The agent is the in-network control path that
+this ADR waited for. The sandbox VM with a public IP stays valid for Molecule (ADR-0021), which runs from the
+workstation. Bastion (Week 8) is still open and is not needed for this path.

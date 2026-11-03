@@ -39,6 +39,6 @@ variable "private_ip_address" {
 }
 
 variable "ansible_ssh_public_key" {
-  description = "Public half of the pipeline's dedicated SSH key (the private half lives in Key Vault). Supplied as TF_VAR_ansible_ssh_public_key; never committed."
+  description = "Public half of the pipeline's dedicated SSH key (the private half lives in Key Vault). Committed in dev.auto.tfvars: a public key is not a secret (ADR-0029)."
   type        = string
 }
