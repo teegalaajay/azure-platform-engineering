@@ -112,6 +112,7 @@ This is the target design; section 7 shows what is built today.
 | [0027](docs/adr/0027-ado-environment-approval.md) | An approval check and a Branch control check (`main` only) on the Azure DevOps environment that the Deploy stage targets |
 | [0028](docs/adr/0028-ado-terraform-setup-template.md) | One setup template for the checkout and the pinned Terraform install, used by all three jobs |
 | [0029](docs/adr/0029-ansible-stage-on-the-agent.md) | Ansible stage on the self-hosted agent: platform target root, standalone pipeline, per-run Ansible install, Key Vault SSH key, host-key trust |
+| [0030](docs/adr/0030-e2e-terraform-to-ansible-pipeline.md) | Provision and configure the Ansible target in one pipeline run: allowlisted root parameter, job output variable, `configure` job in the Deploy stage, shared Ansible step template |
 
 ## 7. Status
 
@@ -128,5 +129,5 @@ This is the target design; section 7 shows what is built today.
 | Azure DevOps: Azure identity, Terraform validate pipeline, self-hosted agent and its check pipeline | ✅ in place; the agent is ephemeral (ADR-0022 to 0024) |
 | Repository consistency checks (Terraform version, shared boot block) | ✅ in place (ADR-0025) |
 | Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy) | ✅ in place; Deploy accepts runs from `main` only (Branch control) and waits for an approval on environment `pipeline-demo-dev` (ADR-0027); the jobs share one setup template (ADR-0028) |
-| Azure DevOps Ansible stage: platform target in `snet-app`, configured from the self-hosted agent | ✅ in place; the target and the agent are ephemeral and applied by hand (ADR-0029) |
+| Azure DevOps Ansible stage: platform target in `snet-app`, configured from the self-hosted agent | ✅ in place; one `ado-terraform-deploy` run provisions the target and configures it with Ansible from the Terraform output (ADR-0030); the agent is applied by hand; both are ephemeral |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |
