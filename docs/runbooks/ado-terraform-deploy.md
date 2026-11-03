@@ -58,6 +58,7 @@ The environment is a portal object, not Terraform (ADR-0027). Create it before t
 2. From the workstation, in the new root: `terraform init -input=false`. The azurerm backend creates the empty state blob; the plan identity cannot (observed 2026-10-31).
 3. Check: `az storage blob list --account-name stattfstate01 --container-name tfstate --prefix <folder> --auth-mode login --query "[].name" -o tsv` shows the key.
 4. In `.github/workflows/apply.yml` add the root to `APPLY_ROOTS` or `SKIP_ROOTS` (the classification check fails otherwise). Raise `MIN_DIRS` in `plan.yml` (roots with a backend) and in `validate.yml` and `pipelines/ado-terraform-validate.yml` (Terraform directories).
+5. To deploy the root from this pipeline, add its path to the `values:` list of the `terraformRoot` parameter in `pipelines/ado-terraform-deploy.yml` (the allowlist, ADR-0030). If it also needs Ansible, it must publish `target_host` and `target_user` outputs and its path goes into both `${{ if }}` conditions at the end of the file.
 
 ## 5. Run it
 
@@ -65,6 +66,29 @@ The environment is a portal object, not Terraform (ADR-0027). Create it before t
 - **Plan and apply:** tick the box. Plan runs first. Deploy then stops with "1 approval needs your review before this run can continue to Deploy" (observed): open the approval, read the instruction, and choose Approve or Reject. After Approve, Deploy applies the file that run just published.
 - **Do not start Deploy from a feature branch for real changes.** The approval does not check the branch (ADR-0027); until a Branch control check exists, the approver is the only control.
 - **Check afterwards:** from the workstation, `terraform plan` in the root prints `No changes` (observed). `az group exists --name rg-pipeline-demo-dev` prints `true`.
+
+## 5a. Deploy and configure the Ansible target in one run (ADR-0030)
+
+Pre-flight, each as its own command:
+
+1. `az group exists --name rg-ado-agent-shared` prints `true` and the agent shows Online in `pool-platform-shared`; the `configure` job waits for it.
+2. For a build from nothing the target must not exist: `az group exists --name rg-ansible-target-dev` prints `false` (take it down with runbook `ansible-target`, section 6). If it exists, the run plans only the new outputs (observed 2026-11-03).
+
+Run:
+
+1. Run pipeline, branch `main`, `terraformRoot` = `workloads/ansible-target/dev`, tick "Run the Deploy stage".
+2. Build and Plan run on a hosted image; Plan signs in as the plan identity.
+3. Deploy: Branch control passes on `main`, then "1 approval needs your review"; approve.
+4. The `apply` job creates the root; its last step, `Publish the target address as a job output`, publishes `targetHost` and `targetUser`.
+5. `configure` starts on the agent: pinned Ansible venv, key from Key Vault, ping, `site.yml` twice (the second run must report `changed=0`), key file removed.
+6. The first run is expected to ask for a permit on `pool-platform-shared` and on `sc-azure-keyvault-shared` for this pipeline (observed for `ado-ansible-run`, ADR-0029; not yet observed for this pipeline).
+7. Check from the workstation, in the root: `terraform plan` prints `No changes`; `terraform output target_host` prints `10.10.1.11`.
+
+Symptoms (reasoned until observed):
+
+- `targetHost must be a 10.10.1.x address` in the first Ansible step: the output was not published. Open `Publish the target address as a job output` in the `apply` job. If that step does not exist, the chosen root was not `workloads/ansible-target/dev`.
+- `configure` waits for an agent: the agent is not Online (runbook `ado-agent`).
+- The Deploy stage shows only `apply`: the root chosen was `workloads/pipeline-demo/dev`; `configure` is compiled only for the Ansible root.
 
 ## 6. Symptoms
 

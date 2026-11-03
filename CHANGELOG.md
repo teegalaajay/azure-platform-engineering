@@ -151,6 +151,11 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `modules/ado-agent-vm`: cloud-init installs `python3-venv` (after the shared block; the drift check passes).
 - `.ansible-lint` excludes `pipelines/`; ADR-0021 amended. ADR-0016 amended (the platform target is built). Runbook `ado-agent` gets section 9.
 - Discovery floors raised to the new real counts: `plan.yml` 13 roots with a backend; `validate.yml` and `pipelines/ado-terraform-validate.yml` 18 Terraform directories. `workloads/ansible-target/dev` added to `SKIP_ROOTS` in `apply.yml`.
+- `workloads/ansible-target/dev/outputs.tf`: `resource_group_name`, `target_host` and `target_user`; the Ansible job reads the last two instead of a typed address. ADR-0030.
+- `pipelines/ado-terraform-deploy.yml`: parameter `terraformRoot` with a two-value allowlist feeding `rootDir`; for the Ansible root a step publishes `targetHost` and `targetUser` as job outputs and a `configure` job in the Deploy stage runs the Ansible steps on `pool-platform-shared`. Needs permits on the pool and on `sc-azure-keyvault-shared` (portal).
+- `pipelines/templates/ansible-site-steps.yml`: the Ansible steps of `ado-ansible-run`, moved into a template with `targetHost` and `targetUser` (default `azureuser`, checked). `ado-ansible-run.yml` now calls it.
+- `pipelines/templates/terraform-azure-step.yml`: optional `step_name` parameter, so a later job can read the step's output variables.
+- Runbooks `ado-terraform-deploy` (section 4 step 5, new section 5a) and `ansible-target` (section 3 item 4) updated.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
