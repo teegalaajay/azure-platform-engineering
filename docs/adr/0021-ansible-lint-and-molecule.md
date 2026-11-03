@@ -58,3 +58,18 @@ Role lookup in `converge.yml`: (i) a path in `include_role`; (ii) `name: web` pl
 - The guard in `verify.yml` has the same condition as the one in `converge.yml` but was not triggered separately (reasoned).
 - `host_key_checking: false` weakens host verification for this scenario. Acceptable for a throwaway VM reachable only from the operator /32 (reasoned).
 - Not tested: another OS image, another `ansible-core`, the `prepare`, `side_effect` and `cleanup` stages, parallel scenarios, running the scenario from CI.
+
+## Amendment 2026-11-02: lint scope
+
+`.ansible-lint` now also excludes `pipelines/` (ADR-0029). The first commit that touched `ansible/` after the
+`pipelines/` folder existed made the hook lint two Azure DevOps files as if they were Ansible content: it failed on lines
+of 133 and 122 characters in `pipelines/ado-agent-check.yml`. Those files are not Ansible content, so the exclusion makes
+the config match its own comment.
+
+The hook runs `ansible-lint` over the whole repository (`pass_filenames: false`) whenever a commit touches `ansible/`,
+`.ansible-lint` or `ansible.cfg`; it also reads untracked files (an empty `molecule/default/converge.yml` in the
+repository root failed it with `empty-playbook`).
+
+Cost: nothing in the Ansible hook now checks the Azure DevOps YAML. `yamllint` is the only line-length check there, and it
+reports lines over 120 characters as warnings, which do not block a commit (observed on `pipelines/ado-ansible-run.yml`).
+Pipeline runs use `ansible/ansible-pipeline.cfg`, which has no vault settings.

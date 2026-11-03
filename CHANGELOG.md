@@ -145,6 +145,12 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0026: records the test with an invalid OIDC token (the backend rejects it, no fallback to the Azure CLI session) and narrows the unproven item to the provider path.
 - Environment `pipeline-demo-dev` gets a Branch control check (`refs/heads/main` only) in front of the Approvals check, so a deploy can only start from `main`; ADR-0027 amended, runbook `ado-terraform-deploy` updated. Built in the portal.
 - ADR-0026 records the stale saved plan refusal (`Saved plan is stale`) as observed and drops it from the unproven list.
+- Workload root `workloads/ansible-target/dev`: `vm-ansible-target-dev` in `snet-app` (no public IP) with its own NAT Gateway; the pipeline key's public half is committed in `dev.auto.tfvars`. In `SKIP_ROOTS` (applied by hand). ADR-0029, runbook `ansible-target`.
+- `pipelines/ado-ansible-run.yml`: manual pipeline on `pool-platform-shared`; installs a pinned `ansible-core` into a per-run venv, reads the SSH key from Key Vault, runs `ansible/site.yml` twice and fails unless the second run changes nothing, then removes the key file and checks it is gone. Built in the portal.
+- `ansible/requirements-pipeline.txt` (the pin) and `ansible/ansible-pipeline.cfg` (no vault settings, so the pipeline needs no `az login`).
+- `modules/ado-agent-vm`: cloud-init installs `python3-venv` (after the shared block; the drift check passes).
+- `.ansible-lint` excludes `pipelines/`; ADR-0021 amended. ADR-0016 amended (the platform target is built). Runbook `ado-agent` gets section 9.
+- Discovery floors raised to the new real counts: `plan.yml` 13 roots with a backend; `validate.yml` and `pipelines/ado-terraform-validate.yml` 18 Terraform directories. `workloads/ansible-target/dev` added to `SKIP_ROOTS` in `apply.yml`.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
