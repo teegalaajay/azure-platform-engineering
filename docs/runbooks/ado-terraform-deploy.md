@@ -79,15 +79,17 @@ Run:
 1. Run pipeline, branch `main`, `terraformRoot` = `workloads/ansible-target/dev`, tick "Run the Deploy stage".
 2. Build and Plan run on a hosted image; Plan signs in as the plan identity.
 3. Deploy: Branch control passes on `main`, then "1 approval needs your review"; approve.
-4. The `apply` job creates the root; its last step, `Publish the target address as a job output`, publishes `targetHost` and `targetUser`.
-5. `configure` starts on the agent: pinned Ansible venv, key from Key Vault, ping, `site.yml` twice (the second run must report `changed=0`), key file removed.
+4. The `apply` job creates the root; its last two steps, `Write the handoff file` and `Publish the handoff artifact`, upload the artifact `handoff` (`handoff.json`: `target_host`, `target_user`, `root`, `commit`).
+5. `configure` starts on the agent: it downloads `handoff` and reads the address and user from it, then pinned Ansible venv, key from Key Vault, ping, `site.yml` twice (the second run must report `changed=0`), key file removed.
 6. The first run is expected to ask for a permit on `pool-platform-shared` and on `sc-azure-keyvault-shared` for this pipeline (observed for `ado-ansible-run`, ADR-0029, and for this pipeline on 2026-11-03).
 7. Check from the workstation, in the root: `terraform plan` prints `No changes`; `terraform output target_host` prints `10.10.1.11`.
+8. In the run summary the Artifacts section lists `handoff`; download it and check that it holds the four fields and no secret.
 
-Symptoms (the first two observed on 2026-11-03, the others reasoned):
+Symptoms (the first observed on 2026-11-03 in the first proof run of ADR-0030, the others reasoned):
 
-- `Publish the target address as a job output` ends red with no message: `terraform output -raw` prints no trailing newline, `read` then returns 1, and `set -e` stops the step. The step reads with `read -r x < <(...) || [[ -n "$x" ]]`.
-- `targetHost must be a 10.10.1.x address` in the first Ansible step; the message prints the value it received. An empty value or literal macro text means the output was not read: the path must be `dependencies.apply.outputs['apply.targetOutputs.<name>']`, and the `deploy.` form failed this way. Otherwise the output was not published. Open `Publish the target address as a job output` in the `apply` job. If that step does not exist, the chosen root was not `workloads/ansible-target/dev`.
+- `Write the handoff file` ends red with no message: `terraform output -raw` prints no trailing newline, `read` then returns 1, and `set -e` stops the step. The step reads with `read -r x < <(...) || [[ -n "$x" ]]`.
+- `handoff.json is missing or empty` or `handoff.json has no target_host or target_user` in `Read the target address from the handoff file`: the artifact was not published or has other fields. Open `Publish the handoff artifact` in the `apply` job. If that step does not exist, the chosen root was not `workloads/ansible-target/dev`.
+- `targetHost must be a 10.10.1.x address` in the first Ansible step; the message prints the value it received.
 - `configure` waits for an agent: the agent is not Online (runbook `ado-agent`).
 - The Deploy stage shows only `apply`: the root chosen was `workloads/pipeline-demo/dev`; `configure` is compiled only for the Ansible root.
 

@@ -99,28 +99,45 @@ stages:
                 - ${{ if eq(parameters.terraformRoot, 'workloads/ansible-target/dev') }}:
                     - template: templates/terraform-azure-step.yml
                       parameters:
-                        display_name: Publish the target address as a job output
+                        display_name: Write the handoff file
                         service_connection: sc-azure-apply-shared
                         working_directory: $(Build.SourcesDirectory)/$(rootDir)
-                        step_name: targetOutputs
                         script: |
                           read -r host < <(terraform output -raw target_host) || [[ -n "$host" ]]
                           read -r user < <(terraform output -raw target_user) || [[ -n "$user" ]]
                           [[ "$host" =~ ^10\.10\.1\.[0-9]{1,3}$ ]] || { echo "bad target_host"; exit 1; }
                           [[ "$user" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || { echo "bad target_user"; exit 1; }
-                          echo "##vso[task.setvariable variable=targetHost;isOutput=true]$host"
-                          echo "##vso[task.setvariable variable=targetUser;isOutput=true]$user"
+                          mkdir -p "$(Build.ArtifactStagingDirectory)/handoff"
+                          printf '{"target_host":"%s","target_user":"%s","root":"%s","commit":"%s"}\n' \
+                            "$host" "$user" "${{ parameters.terraformRoot }}" "$(Build.SourceVersion)" \
+                            > "$(Build.ArtifactStagingDirectory)/handoff/handoff.json"
+                          cat "$(Build.ArtifactStagingDirectory)/handoff/handoff.json"
+                    - publish: $(Build.ArtifactStagingDirectory)/handoff
+                      artifact: handoff
+                      displayName: Publish the handoff artifact
       - ${{ if eq(parameters.terraformRoot, 'workloads/ansible-target/dev') }}:
           - job: configure
             displayName: Configure the target with Ansible from the self-hosted agent
             dependsOn: apply
             pool:
               name: pool-platform-shared    # the agent in snet-mgmt; the hosted image cannot reach snet-app
-            variables:
-              targetHost: $[ dependencies.apply.outputs['apply.targetOutputs.targetHost'] ]
-              targetUser: $[ dependencies.apply.outputs['apply.targetOutputs.targetUser'] ]
             steps:
+              - download: current
+                artifact: handoff
+                displayName: Download the handoff artifact
+              - bash: |
+                  set -euo pipefail
+                  f="$PIPELINE_WS/handoff/handoff.json"
+                  test -s "$f" || { echo "handoff.json is missing or empty"; exit 1; }
+                  cat "$f"
+                  { read -r host; read -r user; } < <(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["target_host"]); print(d["target_user"])' "$f")
+                  [[ -n "${host:-}" && -n "${user:-}" ]] || { echo "handoff.json has no target_host or target_user"; exit 1; }
+                  echo "##vso[task.setvariable variable=targetHost]$host"
+                  echo "##vso[task.setvariable variable=targetUser]$user"
+                displayName: Read the target address from the handoff file
+                env:
+                  PIPELINE_WS: $(Pipeline.Workspace)
               - template: templates/ansible-site-steps.yml
                 parameters:
-                  targetHost: $(targetHost)    # runtime macro: the value exists only after apply
+                  targetHost: $(targetHost)    # runtime macro: set by the step above, so it exists only once that step has run
                   targetUser: $(targetUser)
