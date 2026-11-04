@@ -93,6 +93,35 @@ Symptoms (the first observed on 2026-11-03 in the first proof run of ADR-0030, t
 - `configure` waits for an agent: the agent is not Online (runbook `ado-agent`).
 - The Deploy stage shows only `apply`: the root chosen was `workloads/pipeline-demo/dev`; `configure` is compiled only for the Ansible root.
 
+## 5b. Failure handling and the failure email (ADR-0033)
+
+What exists: `pipelines/templates/failure-report.yml` is the last step of the `validate`, `plan`, `apply` and
+`configure` jobs; `retryCountOnTaskFailure: 2` is on the Terraform install step (the shared template and the inline
+copy in `ado-terraform-validate.yml`) and on the Key Vault read in `ansible-site-steps.yml`; every job has a
+`timeoutInMinutes` (10, 10, 30, 15); and one personal subscription mails you when a run fails.
+
+**Reading a failed run.** Open the run, then the Errors tab: the line starting `FAILED pipeline=` is the failure
+report (pipeline, run number, stage, job, ref, short commit, Terraform root). Repeated `Bash exited with code '1'`
+entries from one step mean retries. The Warnings tab lists `RetryHelper ... will retry (attempt #: n out of 2)`
+lines, one per retry (observed). A gate that rejects the job before any step starts (Branch control, approval)
+writes no failure report (observed); read the check panel on the Deploy stage instead.
+
+**The subscription (portal, personal; an RC4 exception).** User settings, Notifications, New subscription;
+category Build, template "A build fails"; description `platform pipelines: build fails`; deliver to the preferred
+email; filter "a specific team project", `azure-platform-engineering`; keep the clause `Status = Failed`; Finish.
+Then switch the default "Build completes" subscription off. It notifies only the account that made it. The email
+subject starts `[Build failed]`; it carries the pipeline, branch and short commit but no run number (observed).
+
+**Testing the failure path without cost.** Create a throwaway branch (`git switch -c test/<name>`), change the last
+two hex digits of `terraformSha256` in `pipelines/ado-terraform-deploy.yml`, commit and push it, then Run pipeline
+on that branch with Deploy unticked. Expect: Build red after about 15 s with three `Bash exited with code '1'`
+errors, the failure report as a fourth error, two retry warnings, Plan and Deploy skipped, one email. Delete the
+branch afterwards (`git push origin --delete test/<name>`) and never open a pull request from it.
+
+**Limits.** No report when a job never starts, when the agent dies, or in pipelines that do not call the template.
+A retry that succeeds sends nothing. The timeout of `apply` is wide on purpose: a kill mid-apply can leave a partly
+applied change and a stuck lock (`terraform force-unlock` only after checking nothing is running).
+
 ## 6. Symptoms
 
 | Symptom | Cause | Action |
@@ -107,6 +136,9 @@ Symptoms (the first observed on 2026-11-03 in the first proof run of ADR-0030, t
 | Deploy shows a red X and "1/2 checks failed"; the panel lists Branch control "Failed" and Approval "Canceled"; no approval prompt was shown (observed) | the run was started from a branch other than `main` | start the run from `main`; change the allowed branch only through an ADR-0027 amendment |
 | The deploy job has no Checkout step, and `terraform apply` fails with "Inconsistent dependency lock file ... azurerm ... no version is selected" (observed) | a `deployment:` job does not check out the repository by itself | the deploy steps must include `templates/terraform-setup.yml`, which holds `checkout: self` and `persistCredentials: false` (ADR-0028; the `init` output behind the "empty directory" explanation was not captured)
 | `terraform apply` fails with `Error: Saved plan is stale` and "the state was changed by another operation after the plan was created" (observed, also for an empty plan) | state changed between Plan and Deploy | run the pipeline again so a new plan is published; if state was changed by hand, bring it back through Terraform first |
+| The Errors tab lists the same `Bash exited with code '1'` several times from one step and the Warnings tab lists `RetryHelper encountered task failure, will retry` (observed) | the step has `retryCountOnTaskFailure`; each failed attempt is one error, two retries are two warnings | read the first attempt's log; a wrong SHA-256 fails every attempt (section 5b) |
+| Deploy is red with "1/2 checks failed" and the run page has no `FAILED pipeline=` line (observed) | a gate rejected the job before any step started, so the failure report never ran | read the check panel on the Deploy stage; the failure email still arrives (section 5b) |
+| A run failed and no email arrived (expected, not yet observed) | the subscription is off, belongs to another account or is filtered out; an offline agent leaves a run waiting and never fails it | User settings, Notifications (section 5b); look in spam |
 | `idToken: unbound variable` in a sign-in step (expected, not yet observed) | the task did not expose the ID token | check the service connection type and the task's `addSpnToEnvironment` setting |
 | `bootstrap/ado-oidc.sh` stops with `ADO_FIC_ISSUER is a retired name` (expected, not yet observed) | the old shared variables are still exported | `unset ADO_FIC_ISSUER ADO_FIC_SUBJECT`, then set the pair for the one connection |
 | Plan leg of the GitHub plan workflow is red for a new root (expected, not yet observed) | the state blob does not exist yet | section 4, steps 2 and 3 |

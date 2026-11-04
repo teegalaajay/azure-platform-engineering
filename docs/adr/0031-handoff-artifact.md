@@ -64,7 +64,14 @@ and the possibility that a second pipeline consumes it. The third is **not built
   `configure` job. The new steps themselves did not run: Deploy runs only from `main` (ADR-0027).
 - **pre-commit** on `pipelines/ado-terraform-deploy.yml`: `yamllint` passed; the Terraform and Ansible hooks had
   no files to check.
-- **Proof run from `main`:** not yet run; this section is amended after it.
+- **Proof run from `main`:** run `#20261103.7` (number read from its run page on 2026-11-04; reasoned to be the
+  proof run because it follows branch run `.6` the same day and contains the handoff steps; its branch field was not
+  looked at). Build 11 s, Plan 28 s, the `apply` job 1 m 25 s and the `configure` job 1 m 20 s, all steps green,
+  including `Write the handoff file`, `Publish the handoff artifact`, `Download the handoff artifact` and `Read the
+  target address from the handoff file`. Recorded on 2026-11-03 from the same session: the JSON printed the root
+  `workloads/ansible-target/dev` and a commit starting `437d11b3a65`; Ansible run 1 `ok=6 changed=4`, run 2 `ok=5
+  changed=0` against `10.10.1.11`; the run page listed the artifacts `handoff` and `tfplan`. The log text of the
+  download and read steps was not seen.
 
 ## Reasoned (not tested)
 
@@ -75,5 +82,5 @@ and the possibility that a second pipeline consumes it. The third is **not built
 
 ## Unproven
 
-Everything under Reasoned; `python3` on the agent path; the effect of the template's `clean: true` checkout on the
+Everything under Reasoned; `python3` on the agent path (indicated by the green read step, log not seen); the effect of the template's `clean: true` checkout on the
 downloaded folder; the failure message when the artifact is missing.

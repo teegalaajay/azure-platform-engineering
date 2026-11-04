@@ -106,6 +106,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `workloads/pipeline-demo/dev`: one resource group with the mandatory tags, the target of that pipeline.
 - `bootstrap/ado-oidc.sh`: apply identity `app-ado-apply-shared` (Contributor at the subscription, Storage Blob Data Contributor on the state container) and its federated credential.
 - `pipelines/templates/terraform-setup.yml`: one steps template holding the checkout and the pinned Terraform install, used by the validate, plan and apply jobs of `ado-terraform-deploy`; ADR-0028.
+- `pipelines/templates/failure-report.yml`: a failure-report step (`condition: failed()`, one `##vso[task.logissue type=error]` line built from fixed non-secret variables), the last step of the `validate`, `plan`, `apply` and `configure` jobs of `ado-terraform-deploy`; ADR-0033.
+- `.github/workflows/validate.yml`: job `secrets` scans the full Git history with a pinned gitleaks 8.30.0 and fails on a wildcard `SecretsFilter`, shell tracing or `TF_LOG` in `pipelines/` and `.github/workflows/`; `validate-gate` needs it; ADR-0032 (PR #48).
 
 ### Changed
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
@@ -157,6 +159,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `pipelines/templates/terraform-azure-step.yml`: optional `step_name` parameter, so a later job can read the step's output variables.
 - Runbooks `ado-terraform-deploy` (section 4 step 5, new section 5a) and `ansible-target` (section 3 item 4) updated.
 - `pipelines/ado-terraform-deploy.yml`: the target address and user reach the `configure` job as a pipeline artifact (`handoff`, a four-field JSON file) instead of two job output variables; the job output step and its addressing are removed. ADR-0031 (replaces option 2a of ADR-0030); runbook `ado-terraform-deploy` section 5a updated.
+- `retryCountOnTaskFailure: 2` on the "Install pinned Terraform" step (`pipelines/templates/terraform-install.yml` and the inline copy in `pipelines/ado-terraform-validate.yml`) and on the `AzureKeyVault@2` read in `pipelines/templates/ansible-site-steps.yml`; none on plan, apply or the Ansible run. ADR-0033.
+- `pipelines/ado-terraform-deploy.yml`: `timeoutInMinutes` 10, 10, 30 and 15 on the `validate`, `plan`, `apply` and `configure` jobs. ADR-0033.
+- ADR-0031 amended with the proof run; README decisions table lists ADR-0032 and ADR-0033; runbook `ado-terraform-deploy` gets section 5b and three symptom rows.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
