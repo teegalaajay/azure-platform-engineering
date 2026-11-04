@@ -33,6 +33,7 @@ stages:
     jobs:
       - job: validate
         displayName: fmt, init without a backend, validate
+        timeoutInMinutes: 10
         steps:
           - template: templates/terraform-setup.yml   # checkout plus pinned Terraform install (ADR-0028)
             parameters:
@@ -45,6 +46,9 @@ stages:
               terraform validate
             displayName: Static checks on the root
             workingDirectory: $(Build.SourcesDirectory)/$(rootDir)
+          - template: templates/failure-report.yml
+            parameters:
+              detail: root=$(rootDir)
 
   - stage: plan
     displayName: Plan
@@ -52,6 +56,7 @@ stages:
     jobs:
       - job: plan
         displayName: Plan as the plan identity
+        timeoutInMinutes: 10
         steps:
           - template: templates/terraform-setup.yml   # checkout plus pinned Terraform install (ADR-0028)
             parameters:
@@ -68,6 +73,9 @@ stages:
           - publish: $(Build.ArtifactStagingDirectory)/dev.tfplan
             artifact: tfplan
             displayName: Publish the plan file
+          - template: templates/failure-report.yml
+            parameters:
+              detail: root=$(rootDir)
 
   - stage: deploy
     displayName: Deploy
@@ -76,6 +84,7 @@ stages:
     jobs:
       - deployment: apply
         displayName: Apply the reviewed plan as the apply identity
+        timeoutInMinutes: 30
         environment: pipeline-demo-dev
         strategy:
           runOnce:
@@ -115,9 +124,13 @@ stages:
                     - publish: $(Build.ArtifactStagingDirectory)/handoff
                       artifact: handoff
                       displayName: Publish the handoff artifact
+                - template: templates/failure-report.yml
+                  parameters:
+                    detail: root=$(rootDir)
       - ${{ if eq(parameters.terraformRoot, 'workloads/ansible-target/dev') }}:
           - job: configure
             displayName: Configure the target with Ansible from the self-hosted agent
+            timeoutInMinutes: 15
             dependsOn: apply
             pool:
               name: pool-platform-shared    # the agent in snet-mgmt; the hosted image cannot reach snet-app
@@ -141,3 +154,6 @@ stages:
                 parameters:
                   targetHost: $(targetHost)    # runtime macro: set by the step above, so it exists only once that step has run
                   targetUser: $(targetUser)
+              - template: templates/failure-report.yml
+                parameters:
+                  detail: root=$(rootDir)

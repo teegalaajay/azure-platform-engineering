@@ -1,0 +1,25 @@
+# Failure report: the last step of a job. It runs only when an earlier step in the same job failed (ADR-0033).
+# It prints a fixed list of non-secret predefined values and never the environment: masking hides only
+# exact registered values, so nothing here may print a secret or a transformed copy of one (ADR-0032).
+parameters:
+  - name: detail                # free text from the caller, for example the Terraform root
+    type: string
+    default: ''
+
+steps:
+  - bash: |
+      set -euo pipefail
+      msg="FAILED pipeline=${PIPELINE} run=${RUN_NUMBER}"
+      msg="${msg} stage=${STAGE} job=${JOB}"
+      msg="${msg} ref=${SOURCE_BRANCH} commit=${SOURCE_VERSION:0:7} ${DETAIL}"
+      echo "##vso[task.logissue type=error]${msg}"
+    displayName: Failure report
+    condition: failed()         # true only when an earlier step in this job failed
+    env:
+      PIPELINE: $(Build.DefinitionName)
+      RUN_NUMBER: $(Build.BuildNumber)
+      STAGE: $(System.StageDisplayName)
+      JOB: $(System.JobDisplayName)
+      SOURCE_BRANCH: $(Build.SourceBranch)
+      SOURCE_VERSION: $(Build.SourceVersion)
+      DETAIL: ${{ parameters.detail }}

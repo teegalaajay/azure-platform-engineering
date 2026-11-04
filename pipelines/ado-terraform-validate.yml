@@ -54,6 +54,7 @@ steps:
       unzip -q "terraform_${TF_VERSION}_linux_amd64.zip" terraform
       echo "##vso[task.prependpath]${TF_DIR}"
     displayName: Install pinned Terraform
+    retryCountOnTaskFailure: 2
     env:
       TF_VERSION: $(terraformVersion)
       TF_SHA256: $(terraformSha256)
