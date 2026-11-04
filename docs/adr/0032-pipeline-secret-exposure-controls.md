@@ -42,7 +42,7 @@ Option (a) in 1 and 2.
   (read, not tested here). `modules/ado-agent-vm` reads its token from Key Vault instead. Revisit if the runner
   becomes long-lived.
 - **Key file until the cleanup step (F3):** the SSH key file exists on the agent from its write until the
-  `always()` step; cleanup on a cancelled or killed run is not tested.
+  `always()` step; cleanup on a cancel during the play step is observed (ADR-0034); a hard loss of the agent and a cancel before the key file exists are not tested.
 - **Placeholder token in `plan.yml` (F1):** a literal placeholder so `plan` can run; no apply path uses it.
 - **`tfplan` artifact (F5):** safe because the two allowed roots take no sensitive inputs. A root with a sensitive
   input must not be added to the `terraform` root allowlist without a new decision.

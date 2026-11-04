@@ -89,6 +89,10 @@ Option (c) in 1, (a) in 2, (b) in 3 and (b) in 4.
 - **The subscription form** for the "A build fails" template offers a project filter (one project listed) and a
   default clause `Status = Failed`. The field names behind "Add new clause" were not looked at.
 
+- Amended 2026-11-04 (ADR-0034): a run whose `plan` job failed on a throwaway branch (run `#20261104.7`) showed the
+  failure report line and sent one failure email; a cancel during the Ansible play (run `#20261104.2`) still ran the
+  key cleanup step, which passed.
+
 ## Reasoned (not tested)
 
 - A retry that succeeds ends with the two warnings and a green step; whether the run counts as "partially
@@ -98,10 +102,10 @@ Option (c) in 1, (a) in 2, (b) in 3 and (b) in 4.
 
 ## Unproven
 
-- Cleanup of the key file on a cancelled run (ADR-0032 item F3); planned for the Day 4 rebuild drill, which has the
-  agent and the target up anyway.
-- The failure report in `plan`, `apply` and `configure` (only `validate` failed in a test), and a run whose `plan`
-  fails.
+- Cleanup of the key file after a hard loss of the agent, and a cancel before the key file exists (the cancel during
+  the play step was observed in the rebuild drill, ADR-0034).
+- The failure report in `apply` and `configure` (observed in `validate` and, in the rebuild drill, in `plan`; the
+  other two sit behind Branch control).
 - The retry on the Key Vault read and on the inline copy in `ado-terraform-validate` (the second is first compiled
   by this pull request's own run of that pipeline).
 - A timeout actually firing, and what it does to a running apply.
