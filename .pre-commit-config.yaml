@@ -1,4 +1,4 @@
-# Local quality gates. CI runs the same file from Week 3: `pre-commit run --all-files`.
+# Local quality gates, advisory only: CI does not run this file yet (ADR-0032). CI enforcement lives in .github/workflows/validate.yml.
 # Revs are frozen to commit SHAs by `pre-commit autoupdate --freeze`; the trailing comment shows the tag.
 minimum_pre_commit_version: "4.0.0"
 repos:

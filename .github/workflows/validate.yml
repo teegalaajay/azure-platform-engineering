@@ -78,7 +78,7 @@ jobs:
 
   gate:
     name: validate-gate
-    needs: [discover, validate]
+    needs: [discover, validate, secrets]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -86,9 +86,36 @@ jobs:
         env:
           DISCOVER: ${{ needs.discover.result }}
           VALIDATE: ${{ needs.validate.result }}
+          SECRETS: ${{ needs.secrets.result }}
         run: |
-          echo "discover=$DISCOVER validate=$VALIDATE"
-          if [ "$DISCOVER" != "success" ] || [ "$VALIDATE" != "success" ]; then
+          echo "discover=$DISCOVER validate=$VALIDATE secrets=$SECRETS"
+          if [ "$DISCOVER" != "success" ] || [ "$VALIDATE" != "success" ] || [ "$SECRETS" != "success" ]; then
             echo "::error::validation did not fully succeed"
+            exit 1
+          fi
+
+  secrets:
+    name: secrets-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0                 # the whole history; the default shallow clone would scan one commit
+          persist-credentials: false     # the Git token is not left in .git/config
+      - name: install gitleaks (pinned by SHA-256)
+        env:
+          GITLEAKS_VERSION: 8.30.0       # the same release as the pre-commit pin
+          GITLEAKS_SHA256: 79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tgz" | sha256sum --check -   # fails the step if the hash differs
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+      - name: scan the full history
+        run: |
+          "$RUNNER_TEMP/gitleaks" git --redact -v .   # every commit in history; --redact keeps any finding out of the log
+      - name: no wildcard Key Vault filter, shell tracing or Terraform debug logging (ADR-0032)
+        run: |
+          if git grep -n -E "SecretsFilter:[[:space:]]*['\"]?[*]|set -[a-z]*[x]|TF_LO[G]" -- pipelines .github/workflows; then
+            echo "::error::a pattern that can print a secret was found"
             exit 1
           fi
