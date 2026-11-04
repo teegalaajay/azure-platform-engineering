@@ -116,6 +116,7 @@ This is the target design; section 7 shows what is built today.
 | [0031](docs/adr/0031-handoff-artifact.md) | Hand the Terraform output to Ansible through a pipeline artifact: a four-field JSON file replaces the job output variable and is read before the shared Ansible template |
 | [0032](docs/adr/0032-pipeline-secret-exposure-controls.md) | Secret exposure controls: a full-history gitleaks scan as part of the required check, a pattern check for shell tracing, `TF_LOG` and wildcard `SecretsFilter` in pipelines, and the masking limits observed |
 | [0033](docs/adr/0033-pipeline-failure-handling.md) | Failure handling for the Azure DevOps pipelines: a failure-report step, retries on three safe steps, job timeouts from observed durations and a "Build fails" email subscription |
+| [0034](docs/adr/0034-rebuild-drill.md) | Rebuild drill: scope (two ephemeral workload roots and the agent), the agent applied by hand, how the timing is measured, failure-path tests on a throwaway branch |
 
 ## 7. Status
 
@@ -134,5 +135,6 @@ This is the target design; section 7 shows what is built today.
 | Azure DevOps multi-stage Terraform pipeline (Build, Plan, manual Deploy) | ✅ in place; Deploy accepts runs from `main` only (Branch control) and waits for an approval on environment `pipeline-demo-dev` (ADR-0027); the jobs share one setup template (ADR-0028) |
 | Azure DevOps Ansible stage: platform target in `snet-app`, configured from the self-hosted agent | ✅ in place; one `ado-terraform-deploy` run provisions the target and configures it with Ansible from the Terraform output (ADR-0030); the agent is applied by hand; both are ephemeral |
 | CI: full-history secret scan and a pattern check for risky pipeline steps | ✅ in place; part of the required `validate-gate` (ADR-0032) |
-| Azure DevOps pipeline failure handling: failure report, retries, job timeouts, failure email | ✅ in place for `ado-terraform-deploy` (ADR-0033); the email is a personal portal setting; cleanup of the key file on a cancelled run is untested |
+| Azure DevOps pipeline failure handling: failure report, retries, job timeouts, failure email | ✅ in place for `ado-terraform-deploy` (ADR-0033); the email is a personal portal setting; the key-file cleanup after a cancel during the play step is observed (ADR-0034) |
+| Rebuild drill: ephemeral workloads and the agent rebuilt from the pipelines, timed | ✅ done once on 2026-11-04 (ADR-0034); two roots rebuilt with 6 m 10 s and 7 m 20 s of run time including approval waits; persistent roots and `storage-demo/prod` not rebuilt |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |
