@@ -113,8 +113,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `containers/hello-web`: a sample Flask application packaged as a multi-stage image that runs as numeric user 10001, with a `.dockerignore`. Built and run locally; no pipeline builds it yet. ADR-0035.
 - ADR-0035: Docker Engine installed from Docker's apt repository, pinned to 29.9.3 and held; the `docker` group; image source under `containers/`; the image baseline. README layout, decisions and status tables updated.
 - Runbook `workstation-setup`: section 6b (Docker Engine), a Docker row in the validated baseline, and three known traps found while restarting WSL for the group change.
+- `platform/registry`: persistent root with `rg-registry-shared` and a Basic container registry (`crplatsharedat01`): admin user off, public endpoint (Basic has no network rules), mandatory tags, outputs for consumer roots; added to `APPLY_ROOTS` in `.github/workflows/apply.yml`. ADR-0036 and runbook `platform-registry`; README decisions and status tables updated.
 
 ### Changed
+- `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
 - `.github/workflows/plan.yml`: the comment above the runner placeholder is indented like the keys around it (no behaviour change).
 - `ansible/playbooks/web.yml` moved to `ansible/site.yml` and reduced to a play that calls the

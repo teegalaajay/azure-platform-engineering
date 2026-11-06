@@ -66,7 +66,7 @@ This is the target design; section 7 shows what is built today.
 3. Apply repository settings: `bootstrap/github-repo-settings.sh`.
 4. Create the state backend: `bootstrap/state-backend.sh`.
 5. Create the CI identities with OIDC federation: `bootstrap/github-oidc.sh` (GitHub Actions) and `bootstrap/ado-oidc.sh` (Azure DevOps).
-6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner` and the two dev demo workloads) are applied by hand; the runner and the agent are ephemeral and are destroyed after use (ADR-0015, ADR-0024).
+6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost`, `platform/registry` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner` and the two dev demo workloads) are applied by hand; the runner and the agent are ephemeral and are destroyed after use (ADR-0015, ADR-0024).
 
 ## 5. Security model
 
@@ -119,6 +119,7 @@ This is the target design; section 7 shows what is built today.
 | [0033](docs/adr/0033-pipeline-failure-handling.md) | Failure handling for the Azure DevOps pipelines: a failure-report step, retries on three safe steps, job timeouts from observed durations and a "Build fails" email subscription |
 | [0034](docs/adr/0034-rebuild-drill.md) | Rebuild drill: scope (two ephemeral workload roots and the agent), the agent applied by hand, how the timing is measured, failure-path tests on a throwaway branch |
 | [0035](docs/adr/0035-container-image-standards.md) | Container images: Docker Engine from Docker's apt repository pinned and held on the workstation, user in the `docker` group, image source under `containers/`, image baseline (multi-stage, numeric non-root user, `.dockerignore`) |
+| [0036](docs/adr/0036-container-registry.md) | Container registry: persistent Basic registry `crplatsharedat01`, public endpoint as an accepted risk until Week 10, role assignments owned by consumer roots, images pushed from the workstation (tag `bootstrap-unscanned` until CI scans) |
 
 ## 7. Status
 
@@ -139,5 +140,6 @@ This is the target design; section 7 shows what is built today.
 | CI: full-history secret scan and a pattern check for risky pipeline steps | ✅ in place; part of the required `validate-gate` (ADR-0032) |
 | Azure DevOps pipeline failure handling: failure report, retries, job timeouts, failure email | ✅ in place for `ado-terraform-deploy` (ADR-0033); the email is a personal portal setting; the key-file cleanup after a cancel during the play step is observed (ADR-0034) |
 | Rebuild drill: ephemeral workloads and the agent rebuilt from the pipelines, timed | ✅ done once on 2026-11-04 (ADR-0034); two roots rebuilt with 6 m 10 s and 7 m 20 s of run time including approval waits; persistent roots and `storage-demo/prod` not rebuilt |
-| Container image `hello-web`: multi-stage, non-root, numeric user | ✅ built and run locally on Docker Engine 29.9.3 (ADR-0035); not built in CI, not pushed to a registry, not scanned |
+| Container image `hello-web`: multi-stage, non-root, numeric user | ✅ built and run locally on Docker Engine 29.9.3 (ADR-0035); pushed once to the registry as `bootstrap-unscanned` (ADR-0036); not built in CI, not scanned |
+| Container registry (Azure Container Registry, Basic): `platform/registry` | ✅ applied 2026-11-06 and in `APPLY_ROOTS`; public endpoint with authentication required (ADR-0036); no consumer has an `AcrPull` assignment yet |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |
