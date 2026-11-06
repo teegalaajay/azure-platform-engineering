@@ -45,6 +45,7 @@ jobs:
         platform/foundation/prod
         platform/security
         platform/cost
+        platform/registry
         workloads/storage-demo/prod
       # Applied by hand from the workstation, never by CI: the ephemeral roots, and
       # platform/agent-identity, whose Key Vault Secrets User role is outside the apply
