@@ -110,6 +110,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `.github/workflows/validate.yml`: job `secrets` scans the full Git history with a pinned gitleaks 8.30.0 and fails on a wildcard `SecretsFilter`, shell tracing or `TF_LOG` in `pipelines/` and `.github/workflows/`; `validate-gate` needs it; ADR-0032 (PR #48).
 - ADR-0034 and runbook `rebuild-drill`: the two ephemeral workload roots and the agent destroyed and rebuilt from the pipelines, timed; README decisions table and status table updated.
 - ADR-0032 (item F3) and ADR-0033 amended with the observed cancel test and the failure report in the `plan` job.
+- `containers/hello-web`: a sample Flask application packaged as a multi-stage image that runs as numeric user 10001, with a `.dockerignore`. Built and run locally; no pipeline builds it yet. ADR-0035.
+- ADR-0035: Docker Engine installed from Docker's apt repository, pinned to 29.9.3 and held; the `docker` group; image source under `containers/`; the image baseline. README layout, decisions and status tables updated.
+- Runbook `workstation-setup`: section 6b (Docker Engine), a Docker row in the validated baseline, and three known traps found while restarting WSL for the group change.
 
 ### Changed
 - `README.md`: decisions table lists ADR 0016 to 0025; status table and "Deploying from zero" brought up to date (the backend, CI identities and platform roots exist; Ansible and Azure DevOps are in place; the apply run succeeded on 2026-10-16); layout rows for `platform/`, `pipelines/` and `scripts/`.
