@@ -218,6 +218,56 @@ sudo apt-mark hold terraform
 **Verify:** `terraform version` → pinned version on `linux_amd64`; `apt-mark showhold` → `terraform`.
 Upgrades only by a deliberate change that updates §4 (`apt-mark unhold` → install new pin → `hold`).
 
+## 6b. Docker Engine — Docker apt repo, pinned + held (added 2026-11-05, ADR-0035)
+
+Prerequisite: WSL runs systemd. **Check:** `ps -p 1 -o comm=` → `systemd`. Nothing from Ubuntu's own repositories
+(`docker.io`, snap, `podman-docker`) may be installed: `docker --version` → `command not found` before you start.
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+gpg --show-keys --fingerprint /etc/apt/keyrings/docker.asc
+```
+
+**STOP:** must be `9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88`, owner "Docker Release (CE deb)". Docker's current
+install page does not print a fingerprint; this value comes from older Docker documentation and third-party pages, so
+the comparison is second-hand. If it differs, delete the file and stop.
+
+```bash
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+sudo apt update
+apt-cache policy docker-ce
+```
+
+**Check:** the file printed by `tee` shows `Suites: noble` and `Architectures: amd64`; `apt-cache policy docker-ce` lists
+`https://download.docker.com/linux/ubuntu noble/stable` as the source and a `Candidate:` line.
+
+```bash
+sudo apt install docker-ce=5:29.9.3-1~ubuntu.24.04~noble docker-ce-cli=5:29.9.3-1~ubuntu.24.04~noble containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-mark hold docker-ce docker-ce-cli
+sudo usermod -aG docker $USER
+```
+
+The `5:` is the apt epoch and belongs to the version string. Only `docker-ce` and `docker-ce-cli` are held;
+`containerd.io`, `docker-buildx-plugin` and `docker-compose-plugin` follow `apt upgrade`. Membership in the `docker`
+group is root-equivalent on this machine (ADR-0035 decision 3).
+
+The group applies only to a new login session. Close VS Code and every WSL terminal, then in **Windows PowerShell**:
+`wsl --terminate Ubuntu-24.04`, check `wsl --list --verbose` shows `Stopped`, then `wsl -d Ubuntu-24.04`.
+
+**Verify:** `groups` includes `docker`; `docker version` → client and server `29.9.3`; `apt-mark showhold` lists
+`docker-ce` and `docker-ce-cli`; `docker run --rm hello-world` prints "Hello from Docker!".
+Upgrades only by a deliberate change: update this section and the baseline table in section 10, `apt-mark unhold`,
+install the new pin, `apt-mark hold`.
+
 ## 7. pipx + pre-commit
 
 ```bash
@@ -289,6 +339,7 @@ Phase 2 adds Ansible / Azure Pipelines extensions — install when needed, not b
 | gh | 2.101.0 | GitHub apt repo, key `2C61…6059` |
 | Azure CLI | 2.90.0 | Microsoft apt repo, key `BC52…29CF` |
 | Terraform | 1.16.4 (held) | HashiCorp apt repo, key `D55C…6560` |
+| Docker Engine (added 2026-11-05) | 29.9.3 (`docker-ce` and `docker-ce-cli` held); containerd 2.4.2, runc 1.5.2 | Docker apt repo, key `9DC8…CD88` (fingerprint comparison second-hand, see section 6b) |
 | pre-commit | 4.6.2 | pipx (Python 3.12.3) |
 | tflint | 0.64.0 | GitHub release, SLSA attestation on checksums.txt |
 | VS Code ext. | terraform 2.40.0 · yaml 1.24.0 · github-actions 0.32.3 | WSL side, auto-update |
@@ -312,6 +363,13 @@ Phase 2 adds Ansible / Azure Pipelines extensions — install when needed, not b
   gets joined, it escapes the following space instead and splits arguments (`accepts at most 1 arg(s), received 3`).
   Prefer single-line commands in runbooks, or paste multi-line blocks intact.
 - **Heredoc blocks must be pasted whole**, from the command through the closing marker line (`JSON`, `MD`, `RC`).
+- **A new `docker` group membership is not picked up by a new WSL terminal** (observed 2026-11-05): `getent group docker`
+  listed the user while `groups` did not. `wsl --shutdown` left the distribution `Running` while VS Code and terminal
+  tabs were open; after closing them, `wsl --terminate Ubuntu-24.04` gave `Stopped` and the next session had the group.
+- **`wsl` is a Windows command.** Typed inside Ubuntu it prints `Command 'wsl' not found, but can be installed with: sudo
+  apt install wsl`; do not install that package, open Windows PowerShell instead.
+- **`Wsl/Service/E_UNEXPECTED` ("Catastrophic failure")** was printed once by a bare `wsl` while the distribution was
+  still `Running` after an unfinished shutdown. The cause was not established; the sequence above cleared it.
 
 ## 13. Clone the platform repository and enable the hooks
 
