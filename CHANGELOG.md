@@ -174,6 +174,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0031 amended with the proof run; README decisions table lists ADR-0032 and ADR-0033; runbook `ado-terraform-deploy` gets section 5b and three symptom rows.
 - `platform/foundation/dev`: subnet `snet-aks-nodes` (`10.10.8.0/22`, the range reserved in ADR-0007) with its own NSG for the AKS node pool. Two inbound allow rules (`allow-aks-nodes` 200 from the node range, `allow-aks-pods` 210 from the overlay pod range `10.244.0.0/16`) sit above the module's `deny-vnet-inbound`; `modules/network` is unchanged. Variables `aks_subnet_prefix` and `aks_pod_cidr`. Prod is not changed. The pod range is repeated in the cluster root and must stay equal.
 - `.github/workflows/apply.yml`: `platform/aks` added to `SKIP_ROOTS`. `plan.yml` root floor 14 to 15; `validate.yml` floor 18 to 20 (it was already one behind). ADR-0007 now records the NSG block and the pod-range mismatch as observed (0 of 12 cross-node DNS lookups without `allow-aks-pods`, 6 of 6 with it); README lists ADR-0038, the AKS status row and `platform/aks` among the hand-applied roots.
+- Runbook `workstation-setup`: new section 6c for `kubectl` (v1.36.6, release binary checked by SHA-256, cosign not verified) and a baseline row in section 10; runbook `platform-aks` points to it. Runbook `plan-on-pr`: the `MIN_DIRS` floor is no longer written as 8 (it is 15); the symptom row quotes the real error text.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

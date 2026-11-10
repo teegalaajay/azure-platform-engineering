@@ -36,7 +36,7 @@ The pod range is set in two places: `aks_pod_cidr` in `platform/foundation/dev` 
 6. Credentials: `az aks get-credentials -g rg-aks-dev -n <cluster_name> --overwrite-existing`, then
    `kubectl get nodes -o wide`. Three nodes `Ready` took about six minutes on 2026-11-10.
 
-`kubectl` is installed on the workstation at v1.36.6, checked against its published SHA-256 file from the same server.
+`kubectl` is installed on the workstation at v1.36.6, checked against its published SHA-256 file from the same server (install steps: `workstation-setup` section 6c).
 The cosign signature has not been verified. `kubectl` must be within one minor version of the cluster (1.36).
 
 ## Verify
