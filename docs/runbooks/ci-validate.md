@@ -7,10 +7,10 @@
 
 | Piece | Where | What it does |
 |---|---|---|
-| Workflow | `.github/workflows/validate.yml` | `discover` finds every directory containing `versions.tf`; `validate` runs `fmt -check`, `init -backend=false`, `validate` and `tflint` in each; `validate-gate` requires both to be `success` |
+| Workflow | `.github/workflows/validate.yml` | `discover` finds every directory containing `versions.tf`; `validate` runs `fmt -check`, `init -backend=false`, `validate` and `tflint` in each; `secrets` scans the history (ADR-0032); `image` lints, builds and scans `hello-web` (ADR-0037); `validate-gate` requires `discover`, `validate`, `secrets` and `image` to be `success` |
 | Required check | `bootstrap/github-repo-settings.sh` (ruleset `protect-main`) | requires the context `validate-gate` from the GitHub Actions app, with the "branch up to date" policy |
 | Lint config | `.yamllint`, `.tflint.hcl` | one config each, read by the pre-commit hooks and by CI |
-| Pins | `validate.yml`, `.terraform.lock.hcl`, `.tflint.hcl` | Terraform 1.16.4, tflint v0.64.0, azurerm ruleset 0.32.0, provider 4.81.0, two third-party actions pinned by SHA |
+| Pins | `validate.yml`, `.terraform.lock.hcl`, `.tflint.hcl` | Terraform 1.16.4, tflint v0.64.0, azurerm ruleset 0.32.0, provider 4.81.0, two third-party actions pinned by SHA; hadolint 2.15.1 and Trivy 0.76.2 pinned by SHA-256 (`image` job) |
 
 No Azure identity is involved. The workflow holds `contents: read` and nothing else. It never runs `plan`, so a green check means the code is well-formed, not that it matches what is deployed.
 
@@ -75,6 +75,9 @@ The second command confirms the action's runtime (`node24` at the time of ADR-00
 | `validate-gate` red, `discover` red, message `expected at least N Terraform directories, found M` | the floor tripped: the pattern broke or directories were removed | fix the pattern, or lower `MIN_DIRS` if directories were removed on purpose |
 | `validate-gate` red, `discover` green, no `validate (...)` checks at all | the list was empty (observed 2026-10-13 with the floor off): `validate` fails at start-up | check the `discover` log line `found N Terraform directories` |
 | Gate log shows `discover=failure validate=skipped` | `validate` needs `discover`, so it is skipped when discovery fails | fix `discover` first |
+| `image-scan` red at `lint the Dockerfile` | hadolint found a rule violation | read the rule ID in the log; fix the Dockerfile |
+| `image-scan` red at `install hadolint` or `install Trivy` with `FAILED` from `sha256sum` | the download differs from the pinned hash (or the release was replaced) | do not change the hash to make it pass; check the release page and the signature first |
+| `image-scan` red at the scan step, no code change in the pull request | the vulnerability database gained a fixable HIGH or CRITICAL finding (observed locally; the daily change is reasoned) | rebuild with the fixed package, as with `zlib1g`; do not loosen `--severity` |
 | Pull request says it is out of date with `main` | the strict policy | update the branch from `main` and let the checks run again |
 | tflint plugin step fails with an HTTP 403 or rate-limit message | anonymous GitHub download limits (expected behaviour, **not reproduced**) | the step already sets `GITHUB_TOKEN`; confirm it is still present |
 | Pull request waits on a required status that never appears | the required context no longer matches a job name (expected behaviour, **not reproduced**) | align the job name and the ruleset |
@@ -91,3 +94,19 @@ Two scripts in `scripts/` guard values that are written in more than one place. 
 - `scripts/check-cloud-init-drift.sh` compares the block from `ARCH=$(dpkg ...)` to `apt-mark hold terraform` in `modules/runner-vm/cloud-init.yaml.tftpl` and `modules/ado-agent-vm/cloud-init.yaml.tftpl`. It fails when the two differ or a marker is missing.
 
 To change the Terraform version: edit `.terraform-version`, change the six places, replace the SHA-256 on `pipelines/ado-terraform-validate.yml` with the hash of the new zip from the `SHA256SUMS` file HashiCorp signs, run `bash scripts/check-terraform-version.sh`, and plan every root. A changed `terraform_version` in the two `*.auto.tfvars` changes the rendered boot script, which forces a VM replacement (observed for the agent on 2026-10-29), so a version bump is a rebuild of any live runner or agent.
+
+## 8. Image job (ADR-0037)
+
+The job `image` (check name `image-scan`) runs on every pull request. It installs hadolint and Trivy as release binaries and checks each against the SHA-256 in the workflow, lints `containers/hello-web/Dockerfile`, builds `hello-web:scan` and scans it with `--scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`.
+
+Reproduce it on the workstation (the commands are the ones in the workflow; `<DIR>` is a directory holding the two verified binaries):
+
+```bash
+<DIR>/hadolint containers/hello-web/Dockerfile
+docker build -t hello-web:scan containers/hello-web
+<DIR>/trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 hello-web:scan
+```
+
+Expected: no output from hadolint and exit 0 from Trivy. A green result means nothing serious that has a fix; it does not mean the image has no vulnerabilities.
+
+Bump a tool: download the release asset, verify its signature or checksum file (Trivy ships a cosign bundle; hadolint ships none), compute `sha256sum`, replace the version and hash in `validate.yml`, and say in the pull request how the hash was obtained. Remove the `zlib1g` upgrade block from the Dockerfile once a scan without it is clean.

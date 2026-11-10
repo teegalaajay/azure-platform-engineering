@@ -87,6 +87,9 @@ choices have to be made before the first image is committed, and the first image
 - Docker Desktop was not installed or compared hands-on; its licence terms were not checked.
 - Rebuilding the workstation from section 6b alone was not tried end to end.
 
+*Update 2026-11-10:* the Dockerfile lint and the vulnerability scan now run in CI (ADR-0037). The other items
+above are unchanged.
+
 ## Consequences
 
 - `containers/<name>/` holds one image per folder: `Dockerfile`, application code, `requirements.txt` (or the
