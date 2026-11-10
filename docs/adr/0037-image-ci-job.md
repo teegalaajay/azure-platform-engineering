@@ -38,7 +38,7 @@ cost that this record states. Several were proposed by the mentor and adopted; t
    so a green job means "nothing serious that could be fixed today", not "no vulnerabilities". The vulnerability
    database changes daily, so an unrelated pull request can turn red with no code change; the fix is then in the
    image, not in the rule.
-3. **Every pull request.** The image is cheap to build (about a minute) and the vulnerability list can change without
+3. **Every pull request.** The image is cheap to build (observed: the job took 24 s) and the vulnerability list can change without
    a code change, so a path filter would hide exactly the failures the job exists for. Cost: runner minutes on pull
    requests that do not touch images.
 4. **`--scanners vuln`.** Secrets are covered by gitleaks over the full history (ADR-0032), and misconfiguration by the

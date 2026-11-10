@@ -116,6 +116,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `platform/registry`: persistent root with `rg-registry-shared` and a Basic container registry (`crplatsharedat01`): admin user off, public endpoint (Basic has no network rules), mandatory tags, outputs for consumer roots; added to `APPLY_ROOTS` in `.github/workflows/apply.yml`. ADR-0036 and runbook `platform-registry`; README decisions and status tables updated.
 - `.github/workflows/validate.yml`: job `image` lints `containers/hello-web/Dockerfile` with hadolint 2.15.1, builds the image and scans it with Trivy 0.76.2 (both pinned by SHA-256); HIGH and CRITICAL fixable findings fail the job and `validate-gate` requires it. ADR-0037; runbook `ci-validate` section 8.
 - `containers/hello-web/Dockerfile`: the final stage upgrades `zlib1g` to the fixed version after the first scan failed on it (a debt; see ADR-0037).
+- `platform/aks`: ephemeral AKS root, applied by hand and destroyed after use. Resource group, user-assigned control-plane identity with `Network Contributor` on `snet-aks-nodes`, Azure CNI Overlay cluster (Free tier, two-node system pool tainted `CriticalAddonsOnly`), one-node user pool, and `AcrPull` for the kubelet identity on the registry (`grant_acr_pull`). A plan-time `precondition` fails if no inbound Allow rule on the node NSG has `pod_cidr` as its source. ADR-0038; runbook `platform-aks`.
 
 ### Changed
 - `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
@@ -172,6 +173,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `pipelines/ado-terraform-deploy.yml`: `timeoutInMinutes` 10, 10, 30 and 15 on the `validate`, `plan`, `apply` and `configure` jobs. ADR-0033.
 - ADR-0031 amended with the proof run; README decisions table lists ADR-0032 and ADR-0033; runbook `ado-terraform-deploy` gets section 5b and three symptom rows.
 - `platform/foundation/dev`: subnet `snet-aks-nodes` (`10.10.8.0/22`, the range reserved in ADR-0007) with its own NSG for the AKS node pool. Two inbound allow rules (`allow-aks-nodes` 200 from the node range, `allow-aks-pods` 210 from the overlay pod range `10.244.0.0/16`) sit above the module's `deny-vnet-inbound`; `modules/network` is unchanged. Variables `aks_subnet_prefix` and `aks_pod_cidr`. Prod is not changed. The pod range is repeated in the cluster root and must stay equal.
+- `.github/workflows/apply.yml`: `platform/aks` added to `SKIP_ROOTS`. `plan.yml` root floor 14 to 15; `validate.yml` floor 18 to 20 (it was already one behind). ADR-0007 now records the NSG block and the pod-range mismatch as observed (0 of 12 cross-node DNS lookups without `allow-aks-pods`, 6 of 6 with it); README lists ADR-0038, the AKS status row and `platform/aks` among the hand-applied roots.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

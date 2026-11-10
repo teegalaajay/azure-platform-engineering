@@ -136,15 +136,17 @@ relied on.
   rules are verified with `az network nsg rule list` (output not posted publicly). Exit: replace
   internet-facing operator rules with Azure Bastion in the hub (Week 8) and remove the variable.
 - **AKS node subnet in dev (2026-11-10).** `snet-aks-nodes` (`10.10.8.0/22`, the reserved range) is
-  built in `platform/foundation/dev` with its own NSG. The module's `deny-vnet-inbound` (4000) is
-  expected to block node-to-node and cross-node pod traffic, so the dev root adds two allow rules
+  built in `platform/foundation/dev` with its own NSG. The module's `deny-vnet-inbound` (4000)
+  blocks cross-node pod traffic (observed), so the dev root adds two allow rules
   through `inbound_rules`: `allow-aks-nodes` (200, the node range) and `allow-aks-pods` (210, the
   overlay pod range `10.244.0.0/16`). Rejected: a module flag that skips the deny rule for one
   subnet (a module change and a new tag, and the subnet would accept traffic from every peered
   network, the hub included). Consequence: the pod range is set in two roots (`aks_pod_cidr` here,
-  `pod_cidr` in `platform/aks`); a mismatch would block cross-node pod traffic with nothing
-  reporting it. Both the block and the mismatch are reasoned from NSG priority order, not tested;
-  the cluster session checks them. The subnet has no internet access
+  `pod_cidr` in `platform/aks`); a mismatch blocks cross-node pod traffic with nothing
+  reporting it at runtime, so the cluster root's plan-time `precondition` checks it. Observed on
+  2026-11-10 (ADR-0038): with `allow-aks-pods` deleted, 0 of 12 cross-node DNS lookups succeeded;
+  after Terraform restored it, 6 of 6. A wrong `pod_cidr` failed the plan. The NSG is the cause by
+  inference from that result; no flow logs were read. The subnet has no internet access
   (`default_outbound_access_enabled = false`); the cluster root chooses the outbound path. Prod is
   unchanged.
 - Cost: VNets, subnets, NSGs and peerings have no hourly charge; peering is billed per GB.
