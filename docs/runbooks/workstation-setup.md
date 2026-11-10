@@ -268,6 +268,33 @@ The group applies only to a new login session. Close VS Code and every WSL termi
 Upgrades only by a deliberate change: update this section and the baseline table in section 10, `apt-mark unhold`,
 install the new pin, `apt-mark hold`.
 
+## 6c. kubectl: release binary from dl.k8s.io, checked by SHA-256 (added 2026-11-10, ADR-0038)
+
+Prerequisite: `command -v kubectl` prints nothing. There is no apt package in this setup, so nothing is held.
+
+Version: the client must be within one minor version of the cluster. `curl -sL https://dl.k8s.io/release/stable-1.36.txt`
+prints the newest 1.36 patch (`v1.36.6` on 2026-11-10; the cluster was 1.36).
+
+```bash
+mkdir -p ~/scratch/kubectl-1.36.6 && cd ~/scratch/kubectl-1.36.6
+curl -fLO https://dl.k8s.io/release/v1.36.6/bin/linux/amd64/kubectl
+curl -fLO https://dl.k8s.io/release/v1.36.6/bin/linux/amd64/kubectl.sha256
+echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+```
+
+**Check:** the `sha256sum --check` line prints `kubectl: OK`. **STOP** if it does not, and delete the download.
+
+The checksum file comes from the same server as the binary, so it proves the download is complete and not corrupted; it
+does not prove who built the binary. The cosign signature was not verified (cosign is not installed here). This is an
+accepted cost and a follow-up.
+
+**Verify:** `ls -l /usr/local/bin/kubectl` shows `root root`, mode `-rwxr-xr-x`, 59592866 bytes; `sha256sum
+/usr/local/bin/kubectl` prints `29818b6729dc9262b692307470d0558d027725e738be5dd47c760261868a2634`; `kubectl version
+--client` prints `Client Version: v1.36.6`. Remove the download folder afterwards: `rm -r ~/scratch/kubectl-1.36.6`.
+Upgrades only by a deliberate change: repeat the block with the new version, then update this section and the baseline
+table in section 10.
+
 ## 7. pipx + pre-commit
 
 ```bash
@@ -340,6 +367,7 @@ Phase 2 adds Ansible / Azure Pipelines extensions — install when needed, not b
 | Azure CLI | 2.90.0 | Microsoft apt repo, key `BC52…29CF` |
 | Terraform | 1.16.4 (held) | HashiCorp apt repo, key `D55C…6560` |
 | Docker Engine (added 2026-11-05) | 29.9.3 (`docker-ce` and `docker-ce-cli` held); containerd 2.4.2, runc 1.5.2 | Docker apt repo, key `9DC8…CD88` (fingerprint comparison second-hand, see section 6b) |
+| kubectl (added 2026-11-10) | v1.36.6 (client; not held) | `dl.k8s.io` release binary, SHA-256 from the same server, cosign not verified (section 6c) |
 | pre-commit | 4.6.2 | pipx (Python 3.12.3) |
 | tflint | 0.64.0 | GitHub release, SLSA attestation on checksums.txt |
 | VS Code ext. | terraform 2.40.0 · yaml 1.24.0 · github-actions 0.32.3 | WSL side, auto-update |

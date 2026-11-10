@@ -8,7 +8,7 @@
 | Piece | Where | What it does |
 |---|---|---|
 | Workflow | `.github/workflows/plan.yml` | Runs on `pull_request` for changes under `modules/`, `platform/`, `workloads/` and the workflow itself |
-| `discover` job | same file | Finds every directory with a `backend.tf`; fails if fewer than 8 (`MIN_DIRS`) |
+| `discover` job | same file | Finds every directory with a `backend.tf`; fails if fewer than `MIN_DIRS` (15 on 2026-11-10; the value in `plan.yml` is the one that counts) |
 | `plan` jobs | same file | One matrix leg per root; signs in as the plan identity (ADR-0013) through Terraform's own OIDC support; runs `plan -lock=false -detailed-exitcode` |
 | `comment` job | same file | Builds one comment from all legs, refuses to post if a GUID-shaped string is present, then creates or updates the comment marked `<!-- plan-comment -->` |
 | Repository secrets | `bootstrap/github-repo-settings.sh` | Eight secrets: the tenant, subscription and two client IDs, plus the operator's IP range, budget emails, object ID and SSH public key |
@@ -57,7 +57,7 @@ Expected: all checks green, exactly one comment, and `false` from the last comma
 | Every leg fails at `terraform init` with `Please run 'az login'` | The plan job has no `id-token: write`, so there is no OIDC token and Terraform falls back to the Azure CLI | Restore `id-token: write` on the plan job. Do not add an `az login` step |
 | A row reads `NO RESULT (leg failed before the plan)` | The leg failed before it wrote its output, usually at `init` or sign-in | Open that leg's log and read the failing step |
 | A row reads `ERROR`, exit code 1 | The root could not be planned | Read the error in that root's details block in the comment |
-| `discover` fails with fewer than 8 roots | A `backend.tf` was renamed, moved or removed | Restore it, or lower `MIN_DIRS` if the root was removed on purpose |
+| `discover` fails with `expected at least N roots with a backend, found M` | A `backend.tf` was renamed, moved or removed | Restore it, or lower `MIN_DIRS` if the root was removed on purpose |
 | The CI plan shows changes to an input that the local plan does not | A repository secret has drifted from the operator's value | Section 2, then rerun the plan |
 | The `comment` job fails before posting | A GUID-shaped string survived masking | Do not bypass the gate. Find the source in the plan output; if a comment was already posted, delete it |
 | A pull request from a fork shows red checks | Forks get no secrets and no OIDC token, so the plan fails closed | Expected. Not yet exercised end to end |
