@@ -1,0 +1,11 @@
+location                     = "eastus2"
+environment                  = "dev"
+data_classification          = "internal"
+network_resource_group_name  = "rg-network-dev"
+vnet_name                    = "vnet-spoke-dev"
+pod_cidr                     = "10.244.0.0/16" # must equal aks_pod_cidr in platform/foundation/dev
+registry_name                = "crplatsharedat01"
+registry_resource_group_name = "rg-registry-shared"
+system_vm_size               = "Standard_D4s_v7"
+user_vm_size                 = "Standard_D2s_v7"
+grant_acr_pull               = true
