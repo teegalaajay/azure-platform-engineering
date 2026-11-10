@@ -78,7 +78,7 @@ jobs:
 
   gate:
     name: validate-gate
-    needs: [discover, validate, secrets]
+    needs: [discover, validate, secrets, image]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -87,9 +87,11 @@ jobs:
           DISCOVER: ${{ needs.discover.result }}
           VALIDATE: ${{ needs.validate.result }}
           SECRETS: ${{ needs.secrets.result }}
+          IMAGE: ${{ needs.image.result }}
         run: |
-          echo "discover=$DISCOVER validate=$VALIDATE secrets=$SECRETS"
-          if [ "$DISCOVER" != "success" ] || [ "$VALIDATE" != "success" ] || [ "$SECRETS" != "success" ]; then
+          echo "discover=$DISCOVER validate=$VALIDATE secrets=$SECRETS image=$IMAGE"
+          if [ "$DISCOVER" != "success" ] || [ "$VALIDATE" != "success" ] \
+            || [ "$SECRETS" != "success" ] || [ "$IMAGE" != "success" ]; then
             echo "::error::validation did not fully succeed"
             exit 1
           fi
@@ -119,3 +121,37 @@ jobs:
             echo "::error::a pattern that can print a secret was found"
             exit 1
           fi
+
+  image:
+    name: image-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: install hadolint (pinned by SHA-256, ADR-0037)
+        env:
+          HADOLINT_VERSION: 2.15.1
+          HADOLINT_SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/hadolint" \
+            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
+          echo "${HADOLINT_SHA256}  $RUNNER_TEMP/hadolint" | sha256sum --check -   # fails the step if the hash differs
+          chmod +x "$RUNNER_TEMP/hadolint"
+      - name: install Trivy (pinned by SHA-256; signature checked by hand, ADR-0037)
+        env:
+          TRIVY_VERSION: 0.76.2
+          TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        run: |
+          BASE="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          curl -sSfL -o "$RUNNER_TEMP/trivy.tgz" "${BASE}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tgz" | sha256sum --check -   # fails the step if the hash differs
+          tar -xzf "$RUNNER_TEMP/trivy.tgz" -C "$RUNNER_TEMP" trivy
+      - name: lint the Dockerfile
+        run: '"$RUNNER_TEMP/hadolint" containers/hello-web/Dockerfile'
+      - name: build the image
+        run: docker build -t hello-web:scan containers/hello-web
+      - name: scan the image (HIGH and CRITICAL, fixable only)
+        run: |
+          "$RUNNER_TEMP/trivy" image --scanners vuln --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 hello-web:scan

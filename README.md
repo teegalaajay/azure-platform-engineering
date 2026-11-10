@@ -120,6 +120,7 @@ This is the target design; section 7 shows what is built today.
 | [0034](docs/adr/0034-rebuild-drill.md) | Rebuild drill: scope (two ephemeral workload roots and the agent), the agent applied by hand, how the timing is measured, failure-path tests on a throwaway branch |
 | [0035](docs/adr/0035-container-image-standards.md) | Container images: Docker Engine from Docker's apt repository pinned and held on the workstation, user in the `docker` group, image source under `containers/`, image baseline (multi-stage, numeric non-root user, `.dockerignore`) |
 | [0036](docs/adr/0036-container-registry.md) | Container registry: persistent Basic registry `crplatsharedat01`, public endpoint as an accepted risk until Week 10, role assignments owned by consumer roots, images pushed from the workstation (tag `bootstrap-unscanned` until CI scans) |
+| [0037](docs/adr/0037-image-ci-job.md) | Image CI job: hadolint and Trivy as release binaries checked by SHA-256, HIGH/CRITICAL fixable findings fail the job, runs on every pull request, part of `validate-gate` |
 
 ## 7. Status
 
@@ -140,6 +141,6 @@ This is the target design; section 7 shows what is built today.
 | CI: full-history secret scan and a pattern check for risky pipeline steps | ✅ in place; part of the required `validate-gate` (ADR-0032) |
 | Azure DevOps pipeline failure handling: failure report, retries, job timeouts, failure email | ✅ in place for `ado-terraform-deploy` (ADR-0033); the email is a personal portal setting; the key-file cleanup after a cancel during the play step is observed (ADR-0034) |
 | Rebuild drill: ephemeral workloads and the agent rebuilt from the pipelines, timed | ✅ done once on 2026-11-04 (ADR-0034); two roots rebuilt with 6 m 10 s and 7 m 20 s of run time including approval waits; persistent roots and `storage-demo/prod` not rebuilt |
-| Container image `hello-web`: multi-stage, non-root, numeric user | ✅ built and run locally on Docker Engine 29.9.3 (ADR-0035); pushed once to the registry as `bootstrap-unscanned` (ADR-0036); not built in CI, not scanned |
+| Container image `hello-web`: multi-stage, non-root, numeric user | ✅ built and run locally on Docker Engine 29.9.3 (ADR-0035); pushed once to the registry as `bootstrap-unscanned` (ADR-0036); built, linted and scanned in CI on every pull request (ADR-0037); the copy in the registry is still tagged `bootstrap-unscanned` |
 | Container registry (Azure Container Registry, Basic): `platform/registry` | ✅ applied 2026-11-06 and in `APPLY_ROOTS`; public endpoint with authentication required (ADR-0036); no consumer has an `AcrPull` assignment yet |
 | Containers (AKS), Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |

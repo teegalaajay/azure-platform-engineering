@@ -114,6 +114,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - ADR-0035: Docker Engine installed from Docker's apt repository, pinned to 29.9.3 and held; the `docker` group; image source under `containers/`; the image baseline. README layout, decisions and status tables updated.
 - Runbook `workstation-setup`: section 6b (Docker Engine), a Docker row in the validated baseline, and three known traps found while restarting WSL for the group change.
 - `platform/registry`: persistent root with `rg-registry-shared` and a Basic container registry (`crplatsharedat01`): admin user off, public endpoint (Basic has no network rules), mandatory tags, outputs for consumer roots; added to `APPLY_ROOTS` in `.github/workflows/apply.yml`. ADR-0036 and runbook `platform-registry`; README decisions and status tables updated.
+- `.github/workflows/validate.yml`: job `image` lints `containers/hello-web/Dockerfile` with hadolint 2.15.1, builds the image and scans it with Trivy 0.76.2 (both pinned by SHA-256); HIGH and CRITICAL fixable findings fail the job and `validate-gate` requires it. ADR-0037; runbook `ci-validate` section 8.
+- `containers/hello-web/Dockerfile`: the final stage upgrades `zlib1g` to the fixed version after the first scan failed on it (a debt; see ADR-0037).
 
 ### Changed
 - `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
