@@ -10,7 +10,7 @@ Placeholders: `<SUBSCRIPTION_ID>`. Real values are never committed to this publi
 | Root | State key | Contents |
 |---|---|---|
 | `platform/foundation/hub` | `platform/foundation/hub.tfstate` | `rg-network-shared`, `vnet-hub-shared` (`10.20.0.0/16`), `snet-mgmt` + NSG |
-| `platform/foundation/dev` | `platform/foundation/dev.tfstate` | `vnet-spoke-dev` (`10.10.0.0/16`), subnets, NSGs, dev<->hub peering |
+| `platform/foundation/dev` | `platform/foundation/dev.tfstate` | `vnet-spoke-dev` (`10.10.0.0/16`), subnets (`snet-app`, `snet-data`, `snet-aks-nodes` `10.10.8.0/22`), NSGs, dev<->hub peering |
 | `platform/foundation/prod` | `platform/foundation/prod.tfstate` | `vnet-spoke-prod` (`10.11.0.0/16`), subnets, NSGs, prod<->hub peering |
 
 Apply order: **hub, then dev, then prod.** Spoke roots look the hub VNet up during plan.
@@ -62,6 +62,7 @@ az network nsg rule list -g rg-network-dev --nsg-name nsg-app-spoke-dev -o table
   an NSG replacement leaves the subnet unfiltered between removing the old association and
   creating the new one, and an in-use subnet cannot be deleted.
 - Never add standalone `azurerm_network_security_rule` resources for these NSGs.
+- `nsg-aks-nodes-spoke-dev` allows the node range (priority 200) and the overlay pod range `10.244.0.0/16` (priority 210). The pod range is also set as `pod_cidr` in `platform/aks`; change both in the same pull request. If they differ, cross-node pod traffic is blocked by `deny-vnet-inbound` and nothing reports it.
 
 ## 5. Failure modes
 

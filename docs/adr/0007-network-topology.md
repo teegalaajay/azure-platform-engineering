@@ -45,11 +45,12 @@ Options 2, 4 and 7.
 | Network | Resource group | CIDR | Subnets |
 |---|---|---|---|
 | `vnet-hub-shared` | `rg-network-shared` | `10.20.0.0/16` | `snet-mgmt` `10.20.3.0/26` (59 usable). Week 8 adds firewall/Bastion subnets here. |
-| `vnet-spoke-dev` | `rg-network-dev` | `10.10.0.0/16` | `snet-app` `10.10.1.0/24`, `snet-data` `10.10.2.0/24` (251 usable each) |
+| `vnet-spoke-dev` | `rg-network-dev` | `10.10.0.0/16` | `snet-app` `10.10.1.0/24`, `snet-data` `10.10.2.0/24` (251 usable each), `snet-aks-nodes` `10.10.8.0/22` (2026-11-10) |
 | `vnet-spoke-prod` | `rg-network-prod` | `10.11.0.0/16` | `snet-app` `10.11.1.0/24`, `snet-data` `10.11.2.0/24` |
 
-Reserved in every spoke, not created yet: `snet-pe` `.4.0/24` (private endpoints, Weeks 9-10),
-`snet-aks-nodes` `.8.0/22` (AKS with Azure CNI Overlay, Week 8; pods use the overlay range).
+Reserved in every spoke, not created yet: `snet-pe` `.4.0/24` (private endpoints, Weeks 9-10).
+`snet-aks-nodes` `.8.0/22` (AKS with Azure CNI Overlay, Week 8; pods use the overlay range) was
+created in dev on 2026-11-10; prod keeps it reserved.
 `.0.0/24` and `.5.0`-`.7.255` stay free for growth. A simulated on-premises range for the Week 9
 hybrid design must not overlap `10.10-10.11/16` or `10.20/16`.
 
@@ -134,4 +135,16 @@ relied on.
   reviewed in the code diff (names, priorities, ports, `var.operator_ip_cidr`), and the applied
   rules are verified with `az network nsg rule list` (output not posted publicly). Exit: replace
   internet-facing operator rules with Azure Bastion in the hub (Week 8) and remove the variable.
+- **AKS node subnet in dev (2026-11-10).** `snet-aks-nodes` (`10.10.8.0/22`, the reserved range) is
+  built in `platform/foundation/dev` with its own NSG. The module's `deny-vnet-inbound` (4000) is
+  expected to block node-to-node and cross-node pod traffic, so the dev root adds two allow rules
+  through `inbound_rules`: `allow-aks-nodes` (200, the node range) and `allow-aks-pods` (210, the
+  overlay pod range `10.244.0.0/16`). Rejected: a module flag that skips the deny rule for one
+  subnet (a module change and a new tag, and the subnet would accept traffic from every peered
+  network, the hub included). Consequence: the pod range is set in two roots (`aks_pod_cidr` here,
+  `pod_cidr` in `platform/aks`); a mismatch would block cross-node pod traffic with nothing
+  reporting it. Both the block and the mismatch are reasoned from NSG priority order, not tested;
+  the cluster session checks them. The subnet has no internet access
+  (`default_outbound_access_enabled = false`); the cluster root chooses the outbound path. Prod is
+  unchanged.
 - Cost: VNets, subnets, NSGs and peerings have no hourly charge; peering is billed per GB.
