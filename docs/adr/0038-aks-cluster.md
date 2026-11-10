@@ -85,6 +85,10 @@ made before the root was written; each states what it costs.
   names, not from the command).
 - `terraform destroy`: `6 destroyed`; `az group exists` was `false` for both resource groups and `az aks list` was
   empty.
+- The installed `kubectl` v1.36.6 passed `cosign verify-blob` against its published signature and certificate (identity
+  `krel-staging@k8s-releng-prod.iam.gserviceaccount.com`, issuer `https://accounts.google.com`; output `Verified OK`).
+  It was run once with a cosign 3.1.4 download that was itself checked against its published checksum; the install
+  from `dl.k8s.io` and the SHA-256 check are in `workstation-setup` section 6c.
 
 ## Reasoned, not tested
 
@@ -102,8 +106,6 @@ made before the root was written; each states what it costs.
   compared with Cost Management.
 - `apply` from `main`, the plan of this root in CI, and a rebuild from zero.
 - Behaviour on an upgrade, with zones, and with local accounts disabled.
-- `kubectl` 1.36.6 was installed from `dl.k8s.io` and checked against its published SHA-256 file from the same
-  server; its cosign signature was not verified.
 
 ## Consequences
 

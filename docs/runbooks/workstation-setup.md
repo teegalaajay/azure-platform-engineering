@@ -286,8 +286,11 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 **Check:** the `sha256sum --check` line prints `kubectl: OK`. **STOP** if it does not, and delete the download.
 
 The checksum file comes from the same server as the binary, so it proves the download is complete and not corrupted; it
-does not prove who built the binary. The cosign signature was not verified (cosign is not installed here). This is an
-accepted cost and a follow-up.
+does not prove who built the binary. The signature was checked once on 2026-11-10 with a one-off cosign 3.1.4 download (itself checked against its published
+checksum, not installed): `cosign verify-blob /usr/local/bin/kubectl --signature kubectl.sig --certificate kubectl.cert
+--certificate-identity krel-staging@k8s-releng-prod.iam.gserviceaccount.com --certificate-oidc-issuer
+https://accounts.google.com` printed `Verified OK` (observed; cosign 3.x warns that `--signature` and `--certificate` are
+deprecated in favour of `--bundle`). Repeat it when the version changes.
 
 **Verify:** `ls -l /usr/local/bin/kubectl` shows `root root`, mode `-rwxr-xr-x`, 59592866 bytes; `sha256sum
 /usr/local/bin/kubectl` prints `29818b6729dc9262b692307470d0558d027725e738be5dd47c760261868a2634`; `kubectl version
@@ -367,7 +370,7 @@ Phase 2 adds Ansible / Azure Pipelines extensions — install when needed, not b
 | Azure CLI | 2.90.0 | Microsoft apt repo, key `BC52…29CF` |
 | Terraform | 1.16.4 (held) | HashiCorp apt repo, key `D55C…6560` |
 | Docker Engine (added 2026-11-05) | 29.9.3 (`docker-ce` and `docker-ce-cli` held); containerd 2.4.2, runc 1.5.2 | Docker apt repo, key `9DC8…CD88` (fingerprint comparison second-hand, see section 6b) |
-| kubectl (added 2026-11-10) | v1.36.6 (client; not held) | `dl.k8s.io` release binary, SHA-256 from the same server, cosign not verified (section 6c) |
+| kubectl (added 2026-11-10) | v1.36.6 (client; not held) | `dl.k8s.io` release binary, SHA-256 from the same server; signature verified once with cosign (section 6c) |
 | pre-commit | 4.6.2 | pipx (Python 3.12.3) |
 | tflint | 0.64.0 | GitHub release, SLSA attestation on checksums.txt |
 | VS Code ext. | terraform 2.40.0 · yaml 1.24.0 · github-actions 0.32.3 | WSL side, auto-update |
