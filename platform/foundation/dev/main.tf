@@ -58,6 +58,17 @@ module "network" {
         { name = "allow-ssh-mgmt", priority = 110, source_address_prefix = local.hub_mgmt_prefix, port = "22" },
       ]
     }
+    # The module's deny-vnet-inbound (4000) blocks node-to-node traffic, so both ranges are allowed explicitly.
+    # aks_pod_cidr is repeated in platform/aks (pod_cidr). If one changes and the other does not, cross-node
+    # pod traffic breaks silently. Change both in the same PR.
+    aks-nodes = {
+      address_prefix    = var.aks_subnet_prefix
+      service_endpoints = []
+      inbound_rules = [
+        { name = "allow-aks-nodes", priority = 200, source_address_prefix = var.aks_subnet_prefix, port = "*", protocol = "*" },
+        { name = "allow-aks-pods", priority = 210, source_address_prefix = var.aks_pod_cidr, port = "*", protocol = "*" },
+      ]
+    }
   }
 }
 

@@ -171,6 +171,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `retryCountOnTaskFailure: 2` on the "Install pinned Terraform" step (`pipelines/templates/terraform-install.yml` and the inline copy in `pipelines/ado-terraform-validate.yml`) and on the `AzureKeyVault@2` read in `pipelines/templates/ansible-site-steps.yml`; none on plan, apply or the Ansible run. ADR-0033.
 - `pipelines/ado-terraform-deploy.yml`: `timeoutInMinutes` 10, 10, 30 and 15 on the `validate`, `plan`, `apply` and `configure` jobs. ADR-0033.
 - ADR-0031 amended with the proof run; README decisions table lists ADR-0032 and ADR-0033; runbook `ado-terraform-deploy` gets section 5b and three symptom rows.
+- `platform/foundation/dev`: subnet `snet-aks-nodes` (`10.10.8.0/22`, the range reserved in ADR-0007) with its own NSG for the AKS node pool. Two inbound allow rules (`allow-aks-nodes` 200 from the node range, `allow-aks-pods` 210 from the overlay pod range `10.244.0.0/16`) sit above the module's `deny-vnet-inbound`; `modules/network` is unchanged. Variables `aks_subnet_prefix` and `aks_pod_cidr`. Prod is not changed. The pod range is repeated in the cluster root and must stay equal.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

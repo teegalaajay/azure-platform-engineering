@@ -48,3 +48,13 @@ variable "operator_ip_cidr" {
     error_message = "operator_ip_cidr must be a single IPv4 address in CIDR form ending in /32."
   }
 }
+
+variable "aks_subnet_prefix" {
+  description = "snet-aks-nodes CIDR (reserved in ADR-0007)"
+  type        = string
+}
+
+variable "aks_pod_cidr" {
+  description = "AKS overlay pod range. Must equal pod_cidr in platform/aks; this root only opens the NSG for it."
+  type        = string
+}
