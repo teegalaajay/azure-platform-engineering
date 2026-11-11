@@ -35,3 +35,14 @@ module "network" {
     }
   }
 }
+
+# Not in modules/network: the module names subnets "snet-<key>" and attaches an NSG to each.
+# Azure requires this exact name, and (read, to be confirmed) allows no NSG on it.
+# default_outbound_access_enabled is left at the provider default: whether a firewall subnet accepts
+# false was not read before this change; exception to the ADR-0007 egress line, recorded in ADR-0039.
+resource "azurerm_subnet" "firewall" {
+  name                 = "AzureFirewallSubnet"
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = module.network.vnet_name # reference = VNet first
+  address_prefixes     = [var.firewall_subnet_prefix]
+}

@@ -78,6 +78,7 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   resource_group_name       = azurerm_resource_group.this.name
   virtual_network_name      = module.network.vnet_name
   remote_virtual_network_id = data.azurerm_virtual_network.hub.id
+  allow_forwarded_traffic   = true # accept traffic the hub firewall forwards in (ADR-0039)
 }
 
 # Child of the HUB VNet, so it lives in the hub's RG (residual coupling, ADR-0007)
@@ -86,4 +87,5 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   resource_group_name       = var.hub_resource_group_name
   virtual_network_name      = var.hub_vnet_name
   remote_virtual_network_id = module.network.vnet_id
+  allow_forwarded_traffic   = true # accept traffic the hub firewall forwards in (ADR-0039)
 }

@@ -22,3 +22,8 @@ variable "mgmt_subnet_prefix" {
   description = "snet-mgmt CIDR (CI runner / ADO agent)"
   type        = string
 }
+
+variable "firewall_subnet_prefix" {
+  description = "AzureFirewallSubnet CIDR (Azure Firewall, ADR-0039)"
+  type        = string
+}
