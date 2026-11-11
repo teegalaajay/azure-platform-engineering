@@ -44,7 +44,7 @@ Options 2, 4 and 7.
 
 | Network | Resource group | CIDR | Subnets |
 |---|---|---|---|
-| `vnet-hub-shared` | `rg-network-shared` | `10.20.0.0/16` | `snet-mgmt` `10.20.3.0/26` (59 usable). Week 8 adds firewall/Bastion subnets here. |
+| `vnet-hub-shared` | `rg-network-shared` | `10.20.0.0/16` | `snet-mgmt` `10.20.3.0/26` (59 usable); `AzureFirewallSubnet` `10.20.0.0/26` (added 2026-11-11, ADR-0039). Bastion gets its own subnet when it is built. |
 | `vnet-spoke-dev` | `rg-network-dev` | `10.10.0.0/16` | `snet-app` `10.10.1.0/24`, `snet-data` `10.10.2.0/24` (251 usable each), `snet-aks-nodes` `10.10.8.0/22` (2026-11-10) |
 | `vnet-spoke-prod` | `rg-network-prod` | `10.11.0.0/16` | `snet-app` `10.11.1.0/24`, `snet-data` `10.11.2.0/24` |
 
@@ -129,6 +129,15 @@ relied on.
   unauditable, being retired). Consequence: a VM in these subnets has no internet until its root
   adds NAT. The `azurerm_subnet_nat_gateway_association` lives in the workload root beside the NAT
   Gateway (a separate resource, so the foundation plan is unaffected) and is destroyed with it.
+- **Hub firewall built and tested (2026-11-11, ADR-0039).** `platform/firewall` is an ephemeral root, applied by hand
+  and destroyed the same day: Azure Firewall Standard in the hub, a route table on dev `snet-app` that sends
+  `0.0.0.0/0` and the prod range to it, and `allow_forwarded_traffic = true` on both dev peerings (prod unchanged).
+  Observed: dev `snet-app` reached `api.ipify.org` as the firewall's public IP and failed to reach `example.com`.
+  Observed from the effective routes: traffic from dev to the hub takes the peering and does **not** pass the firewall,
+  and neither does traffic inside the dev VNet. The statement above that cross-environment traffic is possible only
+  through the hub firewall holds for dev to prod (the route sends it there); dev to hub inspection is not provided
+  by this design. A dev to prod packet was not tested (no VM in prod). The NAT Gateway interim above stays until a
+  standing firewall is decided.
 - **Operator rules hide every rule in the plan (tested 2026-10-04).** `security_rule` is a set;
   one element carrying the sensitive `operator_ip_cidr` makes Terraform render the whole set as
   `(sensitive value)`. NSGs without operator rules render in full. Accepted: rule content is
