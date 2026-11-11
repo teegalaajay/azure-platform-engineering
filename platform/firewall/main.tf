@@ -109,9 +109,10 @@ resource "azurerm_public_ip" "firewall" {
 }
 
 resource "azurerm_firewall" "this" {
-  name                = "fw-hub-${var.environment}"
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
+  name     = "fw-hub-${var.environment}"
+  location = azurerm_resource_group.this.location
+  # Azure requires the firewall to sit in the resource group of the VNet it uses (AzureFirewallReferencesSubnetInDifferentResourceGroup, observed 2026-11-11).
+  resource_group_name = var.hub_resource_group_name
   sku_name            = "AZFW_VNet"
   sku_tier            = "Standard"
   firewall_policy_id  = azurerm_firewall_policy.this.id
