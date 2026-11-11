@@ -17,3 +17,8 @@ output "mgmt_subnet_id" {
   description = "snet-mgmt ID (runner/agent placement, storage and Key Vault VNet rules)"
   value       = module.network.subnet_ids["mgmt"]
 }
+
+output "firewall_subnet_id" {
+  description = "AzureFirewallSubnet ID (platform/firewall places the firewall here)"
+  value       = azurerm_subnet.firewall.id
+}
