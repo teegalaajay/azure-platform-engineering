@@ -52,12 +52,14 @@ jobs:
       # identity's ABAC condition (ADR-0013, ADR-0024).
       # platform/aks: ephemeral, and its Network Contributor and AcrPull assignments are outside
       # the same condition (reasoned from ADR-0013, not tested; ADR-0038).
+      # platform/firewall: ephemeral and billed by the hour, applied by hand and destroyed the same day (ADR-0039).
       # workloads/pipeline-demo/dev: applied by the ADO pipeline ado-terraform-deploy, not here (ADR-0026).
       SKIP_ROOTS: >-
         platform/runner
         platform/ado-agent
         platform/agent-identity
         platform/aks
+        platform/firewall
         workloads/storage-demo/dev
         workloads/vm-demo/dev
         workloads/ansible-target/dev

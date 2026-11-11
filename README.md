@@ -66,7 +66,7 @@ This is the target design; section 7 shows what is built today.
 3. Apply repository settings: `bootstrap/github-repo-settings.sh`.
 4. Create the state backend: `bootstrap/state-backend.sh`.
 5. Create the CI identities with OIDC federation: `bootstrap/github-oidc.sh` (GitHub Actions) and `bootstrap/ado-oidc.sh` (Azure DevOps).
-6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost`, `platform/registry` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner`, `platform/aks` and the two dev demo workloads) are applied by hand; the runner, the agent and the AKS cluster are ephemeral and are destroyed after use (ADR-0015, ADR-0024, ADR-0038).
+6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost`, `platform/registry` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner`, `platform/aks`, `platform/firewall` and the two dev demo workloads) are applied by hand; the runner, the agent, the AKS cluster and the firewall are ephemeral and are destroyed after use (ADR-0015, ADR-0024, ADR-0038, ADR-0039).
 
 ## 5. Security model
 
@@ -122,6 +122,7 @@ This is the target design; section 7 shows what is built today.
 | [0036](docs/adr/0036-container-registry.md) | Container registry: persistent Basic registry `crplatsharedat01`, public endpoint as an accepted risk until Week 10, role assignments owned by consumer roots, images pushed from the workstation (tag `bootstrap-unscanned` until CI scans) |
 | [0037](docs/adr/0037-image-ci-job.md) | Image CI job: hadolint and Trivy as release binaries checked by SHA-256, HIGH/CRITICAL fixable findings fail the job, runs on every pull request, part of `validate-gate` |
 | [0038](docs/adr/0038-aks-cluster.md) | AKS cluster: ephemeral root applied by hand, Azure CNI Overlay in the reserved node subnet, user-assigned control-plane identity, `AcrPull` owned by the cluster root |
+| [0039](docs/adr/0039-azure-firewall-hub.md) | Azure Firewall in the hub: ephemeral root applied by hand, the firewall in the hub's resource group (Azure requires it), a route table on one dev subnet, dev to hub not inspected |
 
 ## 7. Status
 
@@ -145,4 +146,5 @@ This is the target design; section 7 shows what is built today.
 | Container image `hello-web`: multi-stage, non-root, numeric user | ✅ built and run locally on Docker Engine 29.9.3 (ADR-0035); pushed once to the registry as `bootstrap-unscanned` (ADR-0036); built, linted and scanned in CI on every pull request (ADR-0037); the copy in the registry is still tagged `bootstrap-unscanned` |
 | Container registry (Azure Container Registry, Basic): `platform/registry` | ✅ applied 2026-11-06 and in `APPLY_ROOTS`; public endpoint with authentication required (ADR-0036); the only consumer is the ephemeral cluster root, which grants `AcrPull` to the kubelet identity while the cluster exists (ADR-0038) |
 | Containers (AKS): `platform/aks` | ✅ built, used and destroyed 2026-11-10; ephemeral, applied by hand, in `SKIP_ROOTS`; pulled `hello-web` with a managed identity (ADR-0038) |
-| Azure Firewall and routing, private endpoints, Azure Policy | ⬜ planned |
+| Azure Firewall and routing: `platform/firewall` | ✅ built, tested and destroyed 2026-11-11; ephemeral, applied by hand, in `SKIP_ROOTS`; a dev VM reached `api.ipify.org` through the firewall and was refused `example.com`; dev to prod and dev to hub were not packet-tested (ADR-0039) |
+| Private endpoints, Azure Policy | ⬜ planned |
