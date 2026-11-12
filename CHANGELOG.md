@@ -182,6 +182,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - Ephemeral root `platform/firewall`: Azure Firewall Standard (zones 1 to 3) with a policy (threat intelligence `Deny`, a deny rule from the dev range to the prod range, an application allow for `api.ipify.org` over HTTPS), the firewall created in the hub resource group because Azure requires it, and a route table with `0.0.0.0/0` and the prod range on dev `snet-app`. ADR-0039 and runbook `platform-firewall`. Applied by hand and destroyed the same day.
 - `.github/workflows/apply.yml`: `platform/firewall` added to `SKIP_ROOTS`. `plan.yml` root floor 15 to 16. README lists ADR-0039, the firewall status row and `platform/firewall` among the hand-applied roots.
 - `.github/workflows/apply.yml`: `platform/governance` added to `SKIP_ROOTS`. `plan.yml` root floor 16 to 17. `validate.yml` directory floor `MIN_DIRS` 20 to 22, the counted number of directories with a `versions.tf`. README lists ADR-0040 and ADR-0041, the governance status row and `platform/governance` among the hand-applied roots.
+- `bootstrap/github-oidc.sh`: the plan identity gets Reader at the management group `mg-platform` (`GROUP_SCOPE`), so the plan leg for `platform/governance` can read the group and its policy assignment. ADR-0013 and the runbooks `github-oidc` and `platform-governance` are updated. The script was run from the branch: `granted`, then `unchanged` on the second run.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

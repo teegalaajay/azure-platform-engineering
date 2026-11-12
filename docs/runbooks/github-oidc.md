@@ -7,7 +7,7 @@
 
 | Piece | Where | What it does |
 |---|---|---|
-| Plan identity | app registration and service principal `app-gh-plan-shared` | used by pull request jobs. Reader (subscription) and Storage Blob Data Reader (`tfstate` container) |
+| Plan identity | app registration and service principal `app-gh-plan-shared` | used by pull request jobs. Reader (subscription), Reader (`mg-platform` management group, ADR-0040) and Storage Blob Data Reader (`tfstate` container) |
 | Apply identity | `app-gh-apply-shared` | used only by jobs in the `production` environment. Contributor, Storage Blob Data Contributor (`tfstate` container), a conditional Role Based Access Control Administrator (Key Vault Secrets Officer only), and the custom role `Platform Lock Writer` |
 | Federated credentials | `github-pr-plan`, `github-env-production-apply` | match issuer, audience `api://AzureADTokenExchange` and the ID-based subject `repo:<owner>@<ownerId>/<repo>@<repoId>:pull_request` or `...:environment:production` |
 | Identity script | `bootstrap/github-oidc.sh` | creates or converges the identities, credentials and role assignments; removes anything undeclared |

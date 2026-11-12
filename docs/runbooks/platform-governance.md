@@ -79,7 +79,7 @@ Needed only to read or change the tenant root, which this root does not do after
 | `RequestDisallowedByPolicy` from a pipeline | A rule is denying a request | Read the evaluation details in the error; fix the request, or add an exemption with an expiry date |
 | Assignment missing from the subscription-scope list | The list does not show inherited assignments, or propagation | Check the policy state rows instead |
 | `terraform plan` wants to replace the assignment | A name or scope changed | Stop and read it; the assignment name is limited to 24 characters at group scope |
-| CI plan leg for this root fails with an authorization error | The plan identity has Reader at the subscription only | See ADR-0040, Consequences |
+| CI plan leg for this root fails with a 403 `AuthorizationFailed` at `mg-platform` | The plan identity has no role at the group (its Reader is at the subscription, below it) | Run `bootstrap/github-oidc.sh`; the output must show `unchanged Reader at /providers/Microsoft.Management/managementGroups/mg-platform` (ADR-0040, Plan identity at the group) |
 | `apply.yml` guard fails with a root in neither list | The root was not classified | Add it to `SKIP_ROOTS` with a reason |
 
 ## Cost

@@ -82,6 +82,22 @@ and reach everything below. The choices below were made before the root was writ
   `mg-platform`, and `terraform plan` in `platform/governance` was `No changes` without the elevation.
 - The probe resource group was deleted; `az group exists` printed `false`.
 
+## Plan identity at the group
+
+- Observed (PR 61): the first plan leg for this root failed after 26 seconds with two `AuthorizationFailed` (403) reads
+  at `mg-platform`: `policyAssignments/read` and `managementGroups/read`. The plan identity's Reader is at the
+  subscription, below the group; role assignments inherit downward only, so nothing reached the group.
+- Decision 10: grant the plan identity Reader at `mg-platform`, declared in `bootstrap/github-oidc.sh` (`GROUP_SCOPE`).
+  Chosen from three options (grant, leave the leg red, exclude the root from the plan matrix) on the mentor's
+  recommendation; Ajay gave no reason (Gate 2 list).
+- Observed after the grant: the first script run printed `granted Reader` at the group and `unchanged` for every other
+  role; a second run printed `unchanged` for it and no `removed`, so the prune keeps it. The re-run of the failed leg gave
+  46 of 46 checks green.
+- Cost: the plan identity runs code from any same-repository branch (ADR-0014), and it now also reads the structure and
+  policy above the subscription (read only, no write). Rejected: a permanently red leg teaches reviewers to ignore red;
+  excluding the root leaves reviewers without a diff for the highest-risk root. The script was run from the branch, not
+  from `main`.
+
 ## Reasoned, not tested
 
 - Creating `mg-platform` made the creator its Owner (documented default); only reads and a plan were tried without the
@@ -96,8 +112,7 @@ and reach everything below. The choices below were made before the root was writ
 
 - Why the subscription-scope assignment list hid an assignment that the policy state showed as applying.
 - Propagation times for placement, assignment and effect change.
-- The apply identity being refused at management-group scope; the plan identity being unable to read the group (CI
-  planning of this root, see Consequences).
+- The apply identity being refused at management-group scope: it holds no role there and was not tested. The plan identity needed Reader at the group (see Plan identity at the group).
 - Whether existing roots still apply under `Deny` from CI (not run); resources Azure creates itself in other regions
   (for example Defender or Network Watcher) being refused.
 - Remediation and exemptions; any `deployIfNotExists` behaviour (Week 9 Day 3).
@@ -111,5 +126,4 @@ and reach everything below. The choices below were made before the root was writ
   exemption can.
 - The elevation window: to read or change the tenant root a Global Administrator runs `elevateAccess` and removes the
   assignment afterwards. Nothing in the code needs it after the group exists (reasoned for writes).
-- Owed: the CI plan leg for this root (the plan identity has Reader at the subscription only), the diagnostic-settings
-  policy and its identity (Day 3), an exemption example, and tagging policy with the `NetworkWatcherRG` exception.
+- Owed: the diagnostic-settings policy and its identity (Day 3), an exemption example, and tagging policy with the `NetworkWatcherRG` exception. The CI plan leg is closed (see Plan identity at the group).
