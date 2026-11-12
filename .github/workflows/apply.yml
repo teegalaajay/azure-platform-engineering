@@ -43,6 +43,7 @@ jobs:
         platform/foundation/hub
         platform/foundation/dev
         platform/foundation/prod
+        platform/dns
         platform/security
         platform/cost
         platform/registry

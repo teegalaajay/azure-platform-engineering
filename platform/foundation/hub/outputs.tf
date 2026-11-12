@@ -22,3 +22,13 @@ output "firewall_subnet_id" {
   description = "AzureFirewallSubnet ID (platform/firewall places the firewall here)"
   value       = azurerm_subnet.firewall.id
 }
+
+output "dns_inbound_subnet_id" {
+  description = "snet-dns-in ID (DNS Private Resolver inbound endpoint, ADR-0042)"
+  value       = azurerm_subnet.dns_inbound.id
+}
+
+output "dns_outbound_subnet_id" {
+  description = "snet-dns-out ID (DNS Private Resolver outbound endpoint, ADR-0042)"
+  value       = azurerm_subnet.dns_outbound.id
+}

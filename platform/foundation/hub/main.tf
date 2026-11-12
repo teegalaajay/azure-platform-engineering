@@ -46,3 +46,37 @@ resource "azurerm_subnet" "firewall" {
   virtual_network_name = module.network.vnet_name # reference = VNet first
   address_prefixes     = [var.firewall_subnet_prefix]
 }
+
+# DNS Private Resolver subnets (ADR-0042). Standalone like the firewall subnet: modules/network has no
+# delegation option and attaches an NSG to every subnet. Each endpoint needs its own dedicated subnet
+# delegated to Microsoft.Network/dnsResolvers (read from Microsoft's Terraform example).
+# No NSG yet: whether these subnets accept one was not read; exception recorded in ADR-0042.
+resource "azurerm_subnet" "dns_inbound" {
+  name                 = "snet-dns-in"
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = module.network.vnet_name
+  address_prefixes     = [var.dns_inbound_subnet_prefix]
+
+  delegation {
+    name = "Microsoft.Network.dnsResolvers"
+    service_delegation {
+      name    = "Microsoft.Network/dnsResolvers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+resource "azurerm_subnet" "dns_outbound" {
+  name                 = "snet-dns-out"
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = module.network.vnet_name
+  address_prefixes     = [var.dns_outbound_subnet_prefix]
+
+  delegation {
+    name = "Microsoft.Network.dnsResolvers"
+    service_delegation {
+      name    = "Microsoft.Network/dnsResolvers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
