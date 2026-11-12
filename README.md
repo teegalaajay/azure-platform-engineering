@@ -66,7 +66,7 @@ This is the target design; section 7 shows what is built today.
 3. Apply repository settings: `bootstrap/github-repo-settings.sh`.
 4. Create the state backend: `bootstrap/state-backend.sh`.
 5. Create the CI identities with OIDC federation: `bootstrap/github-oidc.sh` (GitHub Actions) and `bootstrap/ado-oidc.sh` (Azure DevOps).
-6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost`, `platform/registry` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner`, `platform/aks`, `platform/firewall` and the two dev demo workloads) are applied by hand; the runner, the agent, the AKS cluster and the firewall are ephemeral and are destroyed after use (ADR-0015, ADR-0024, ADR-0038, ADR-0039).
+6. Apply the persistent roots through pull requests: `platform/foundation/hub`, then the spokes (`dev`, `prod`), `platform/security`, `platform/cost`, `platform/registry` and `workloads/storage-demo/prod`. Roots listed in `SKIP_ROOTS` of `.github/workflows/apply.yml` (`platform/agent-identity`, `platform/ado-agent`, `platform/runner`, `platform/aks`, `platform/firewall`, `platform/governance` and the two dev demo workloads) are applied by hand; the runner, the agent, the AKS cluster and the firewall are ephemeral and are destroyed after use (ADR-0015, ADR-0024, ADR-0038, ADR-0039, ADR-0040).
 
 ## 5. Security model
 
@@ -123,6 +123,8 @@ This is the target design; section 7 shows what is built today.
 | [0037](docs/adr/0037-image-ci-job.md) | Image CI job: hadolint and Trivy as release binaries checked by SHA-256, HIGH/CRITICAL fixable findings fail the job, runs on every pull request, part of `validate-gate` |
 | [0038](docs/adr/0038-aks-cluster.md) | AKS cluster: ephemeral root applied by hand, Azure CNI Overlay in the reserved node subnet, user-assigned control-plane identity, `AcrPull` owned by the cluster root |
 | [0039](docs/adr/0039-azure-firewall-hub.md) | Azure Firewall in the hub: ephemeral root applied by hand, the firewall in the hub's resource group (Azure requires it), a route table on one dev subnet, dev to hub not inspected |
+| [0040](docs/adr/0040-landing-zone-governance.md) | Landing zone governance: management group `mg-platform`, one custom and one built-in policy in an initiative assigned with Deny at the group, root applied by hand |
+| [0041](docs/adr/0041-identity-design.md) | Identity design on paper: bootstrap scripts kept with an exit condition, PIM and Conditional Access as design only, one human with a direct role assignment |
 
 ## 7. Status
 
@@ -147,4 +149,5 @@ This is the target design; section 7 shows what is built today.
 | Container registry (Azure Container Registry, Basic): `platform/registry` | ✅ applied 2026-11-06 and in `APPLY_ROOTS`; public endpoint with authentication required (ADR-0036); the only consumer is the ephemeral cluster root, which grants `AcrPull` to the kubelet identity while the cluster exists (ADR-0038) |
 | Containers (AKS): `platform/aks` | ✅ built, used and destroyed 2026-11-10; ephemeral, applied by hand, in `SKIP_ROOTS`; pulled `hello-web` with a managed identity (ADR-0038) |
 | Azure Firewall and routing: `platform/firewall` | ✅ built, tested and destroyed 2026-11-11; ephemeral, applied by hand, in `SKIP_ROOTS`; a dev VM reached `api.ipify.org` through the firewall and was refused `example.com`; dev to prod and dev to hub were not packet-tested (ADR-0039) |
+| Landing zone governance: `platform/governance` | ✅ applied 2026-11-11; persistent, applied by hand, in `SKIP_ROOTS`; management group `mg-platform` holds the subscription, the `platform-baseline` initiative is assigned with Deny, and a storage account with shared key access enabled was refused with `RequestDisallowedByPolicy`; moving the subscription out stopped enforcement (ADR-0040) |
 | Private endpoints, Azure Policy | ⬜ planned |

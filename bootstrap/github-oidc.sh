@@ -181,6 +181,8 @@ esac
 echo "== role assignments =="
 ensure_role "$plan_sp" "Reader" "$SUB_SCOPE"                                  # control plane: read every resource for refresh
 ensure_role "$plan_sp" "Storage Blob Data Reader" "$container_scope"          # data plane: read state blobs; no write, so no lease (ADR-0013, option 5)
+GROUP_SCOPE="/providers/Microsoft.Management/managementGroups/mg-platform"   # fixed by ADR-0040
+ensure_role "$plan_sp" "Reader" "$GROUP_SCOPE"                         # read the group and its policy assignment for plan; no write (ADR-0040)
 ensure_role "$apply_sp" "Contributor" "$SUB_SCOPE"
 ensure_role "$apply_sp" "Storage Blob Data Contributor" "$container_scope"
 # built-in role definition ID; identical in every tenant, public in Microsoft docs
