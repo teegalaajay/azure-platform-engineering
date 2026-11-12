@@ -7,7 +7,7 @@ resource "azurerm_management_group_policy_assignment" "platform_baseline" {
   policy_definition_id = azurerm_management_group_policy_set_definition.platform_baseline.id
 
   parameters = jsonencode({
-    effect           = { value = "Audit" }
+    effect           = { value = "Deny" }
     allowedLocations = { value = ["eastus2", "centralus"] }
   })
 }
