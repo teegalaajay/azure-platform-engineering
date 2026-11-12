@@ -27,3 +27,13 @@ variable "firewall_subnet_prefix" {
   description = "AzureFirewallSubnet CIDR (Azure Firewall, ADR-0039)"
   type        = string
 }
+
+variable "dns_inbound_subnet_prefix" {
+  description = "snet-dns-in CIDR (DNS Private Resolver inbound endpoint, ADR-0042)"
+  type        = string
+}
+
+variable "dns_outbound_subnet_prefix" {
+  description = "snet-dns-out CIDR (DNS Private Resolver outbound endpoint, ADR-0042)"
+  type        = string
+}
