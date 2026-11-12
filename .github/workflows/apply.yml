@@ -54,12 +54,14 @@ jobs:
       # the same condition (reasoned from ADR-0013, not tested; ADR-0038).
       # platform/firewall: ephemeral and billed by the hour, applied by hand and destroyed the same day (ADR-0039).
       # workloads/pipeline-demo/dev: applied by the ADO pipeline ado-terraform-deploy, not here (ADR-0026).
+      # platform/governance: applied by hand, outside the apply identity scope (ADR-0040).
       SKIP_ROOTS: >-
         platform/runner
         platform/ado-agent
         platform/agent-identity
         platform/aks
         platform/firewall
+        platform/governance
         workloads/storage-demo/dev
         workloads/vm-demo/dev
         workloads/ansible-target/dev
