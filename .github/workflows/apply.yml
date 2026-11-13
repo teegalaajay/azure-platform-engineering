@@ -37,6 +37,7 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_APPLY }}
       TF_VAR_operator_ip_cidr: ${{ secrets.OPERATOR_IP_CIDR }}
       TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
+      TF_VAR_alert_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
       TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
       # Dependency order: the hub first, then every root that reads its state.
       APPLY_ROOTS: >-
@@ -45,6 +46,7 @@ jobs:
         platform/foundation/prod
         platform/dns
         platform/security
+        platform/management
         platform/cost
         platform/registry
         workloads/storage-demo/prod

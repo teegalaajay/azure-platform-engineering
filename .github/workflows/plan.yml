@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - id: find
         env:
-          MIN_DIRS: "19"
+          MIN_DIRS: "20"
         run: |
           dirs=$(find . -name backend.tf -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)
@@ -79,6 +79,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID_PLAN }}
           TF_VAR_operator_ip_cidr: ${{ secrets.OPERATOR_IP_CIDR }}
           TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
+          TF_VAR_alert_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS }}
           TF_VAR_operator_object_id: ${{ secrets.OPERATOR_OBJECT_ID }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
           # Plan-only placeholder: the real token is minted at apply time and is dead after an hour.
