@@ -11,7 +11,7 @@
 
 ADR-0035 required a Dockerfile lint and a vulnerability scan, and ADR-0036 deferred the job to this session. Without
 it the only image in the registry was built on a laptop and never scanned. Six choices had to be made, and each has a
-cost that this record states. Several were proposed by the mentor and adopted; they are marked.
+cost that this record states.
 
 ## Options considered
 
@@ -33,7 +33,7 @@ cost that this record states. Several were proposed by the mentor and adopted; t
    The Trivy signature was checked once by hand with cosign 3.1.4 (`verify-blob --bundle`, with the certificate
    issuer and the exact workflow identity taken from Trivy's documentation); the job does not repeat it. hadolint
    publishes no signature, so its hash comes only from the release page: an accepted limit.
-2. **`--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1` (adopted from the mentor).** A finding fails the job
+2. **`--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`.** A finding fails the job
    only if it is serious and a fix exists. Cost: MEDIUM and LOW findings and unfixed ones are not shown as failures,
    so a green job means "nothing serious that could be fixed today", not "no vulnerabilities". The vulnerability
    database changes daily, so an unrelated pull request can turn red with no code change; the fix is then in the

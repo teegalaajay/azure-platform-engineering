@@ -15,15 +15,15 @@ and reach everything below. The choices below were made before the root was writ
 ## Options considered and decisions
 
 1. **Where to assign.** (a) On the Tenant Root Group; (b) create a management group, assign there, and move the
-   subscription in; (c) assign on the subscription. **Decision: (b)**, chosen by the mentor (no reason was given). (c)
+   subscription in; (c) assign on the subscription. **Decision: (b)** (no reason recorded). (c)
    enforces the same rules today; (b) is chosen because the hierarchy is the migration path in ADR-0004 and an
    assignment on a group reaches every subscription later placed under it. Cost: the root is applied by hand, a group
    and a placement exist that a single subscription does not need, and the diagram looks bigger than the estate.
 2. **Group ID.** `mg-platform`, display name "Platform", directly under the Tenant Root Group. The ID is permanent; the
-   display name is not. Chosen by the mentor. Cost: a second group later needs a qualifier in its own name.
+   display name is not. Cost: a second group later needs a qualifier in its own name.
 3. **Azure Verified Modules.** (a) Keep `modules/network` and `modules/storage`, evaluate AVM on paper, hand-write the
    governance root; (b) build the governance root from the ALZ pattern module `avm-ptn-alz`; (c) replace the modules.
-   **Decision: (a)**, chosen by the mentor (no reason was given). Read, from search results only (the registry pages
+   **Decision: (a)** (no reason recorded). Read, from search results only (the registry pages
    could not be fetched): AVM resource modules default to Well-Architected settings that a caller can change, they ship
    telemetry on by default, new Terraform AVM modules use AzAPI, and the releases seen were all 0.x with breaking
    changes between minor versions. Our storage module fixes its baseline (shared key off, TLS 1.2, Deny firewall,
@@ -88,8 +88,7 @@ and reach everything below. The choices below were made before the root was writ
   at `mg-platform`: `policyAssignments/read` and `managementGroups/read`. The plan identity's Reader is at the
   subscription, below the group; role assignments inherit downward only, so nothing reached the group.
 - Decision 10: grant the plan identity Reader at `mg-platform`, declared in `bootstrap/github-oidc.sh` (`GROUP_SCOPE`).
-  Chosen from three options (grant, leave the leg red, exclude the root from the plan matrix) on the mentor's
-  recommendation; Ajay gave no reason (Gate 2 list).
+  Chosen from three options (grant, leave the leg red, exclude the root from the plan matrix) (no reason recorded).
 - Observed after the grant: the first script run printed `granted Reader` at the group and `unchanged` for every other
   role; a second run printed `unchanged` for it and no `removed`, so the prune keeps it. The re-run of the failed leg gave
   46 of 46 checks green.
