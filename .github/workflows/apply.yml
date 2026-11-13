@@ -45,6 +45,7 @@ jobs:
         platform/foundation/prod
         platform/dns
         platform/security
+        platform/management
         platform/cost
         platform/registry
         workloads/storage-demo/prod
