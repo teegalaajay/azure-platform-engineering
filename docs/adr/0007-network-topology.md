@@ -32,7 +32,7 @@ separated by resource group.
 6. **Inline `subnet` blocks** in the VNet resource. The VNet then owns the full subnet list;
    any standalone subnet (or later addition) is overwritten on apply.
 7. **Standalone `azurerm_subnet` + `azurerm_subnet_network_security_group_association`.**
-   NSG rules stay inline (`security_rule` blocks, generated with `dynamic`): the rules share the
+   NSG rules stay inline (`security_rule` blocks, built using `dynamic`): the rules share the
    NSG's lifecycle, and no standalone `azurerm_network_security_rule` may ever target these NSGs
    (mixing the two styles makes each apply remove the other's rules).
 
