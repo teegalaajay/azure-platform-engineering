@@ -45,3 +45,14 @@ variable "retention_in_days" {
     error_message = "retention_in_days must be between 30 and 730."
   }
 }
+
+variable "alert_contact_emails" {
+  description = "Alert recipients for the platform action group. Set via TF_VAR_alert_contact_emails (JSON list); never committed (public repo, ADR-0044)."
+  type        = list(string)
+  sensitive   = true # redacted in plan/apply output (plans are pasted into public PRs); still stored in state
+
+  validation {
+    condition     = length(var.alert_contact_emails) > 0 && alltrue([for e in var.alert_contact_emails : can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", e))])
+    error_message = "alert_contact_emails must be a non-empty list of email addresses."
+  }
+}
