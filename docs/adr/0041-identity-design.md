@@ -26,7 +26,7 @@ design and one decision. Nothing in it changes a resource.
 
 1. **`platform/identity` root.** (A) Keep the two scripts and record an exit condition; (B) build the root for the two
    GitHub apps first, import them, retire that script only after a clean plan; (C) replace both scripts at once.
-   **Decision: (A)**, chosen by the mentor (no reason was given). The scripts are idempotent, prune what they do not
+   **Decision: (A)** (no reason recorded). The scripts are idempotent, prune what they do not
    declare, and were exercised on real runs (PR #16, PR #28); the apply workflow depends on them. Cost: an identity
    change has no plan view and no state, and the repo has two styles for infrastructure. Why not B or C now (reasoned):
    a mistake that makes Terraform recreate an app gives it a new client ID, and that ID is stored in eight GitHub

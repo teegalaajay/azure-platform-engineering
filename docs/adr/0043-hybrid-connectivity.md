@@ -37,11 +37,14 @@ from the gateway pages; not re-verified).
 ## Options considered and decisions
 
 1. **Which link.** (A) Active-active site-to-site VPN only. (B) ExpressRoute only. (C) ExpressRoute as the primary path
-   with an active-active site-to-site VPN as the backup. **Decision: (C)**, chosen by Ajay from the three options with
-   the mentor's recommendation; no reason was given. Reasoned case for (C): a regulated workload gets a path that does
-   not cross the internet, and a second, independent path in case the circuit or the provider fails; (A) has no private
-   circuit; (B) leaves one provider and one pair of edge routers as the only path unless a second circuit is bought.
-   **Cost of (C), named:** it is the most expensive option and the slowest to start (a provider contract and
+   with an active-active site-to-site VPN as the backup. **Decision: (C).** Reasoned (not tested): (a) a regulated
+   workload is asked where its data travels, and a private circuit that never crosses the internet is easier to defend
+   to an auditor than a VPN over the internet, which needs more evidence (encryption settings, key handling, provider
+   path); (b) one link is one failure domain, since a circuit depends on one provider and one pair of Microsoft edge
+   routers at one location, while a VPN fails for different reasons (internet path, remote device), so the two together
+   rarely fail at once, and (B) alone leaves the platform exposed to a single provider outage; (c) the VPN gateway is a
+   small cost next to a circuit, which makes it the sensible insurance (prices not looked up). (A) has no private
+   circuit. **Cost of (C), named:** it is the most expensive option and the slowest to start (a provider contract and
    provisioning lead time for the circuit; not looked up), it needs two gateways in the hub, and the team has to run two
    kinds of link and decide which one carries traffic when both are up (item 3).
 2. **Gateway subnet.** `GatewaySubnet` is a fixed name and needs its own subnet in the hub. Size it /26 (secondary

@@ -60,11 +60,11 @@ tested the whole chain with a throwaway private endpoint.
    more root, floors `plan.yml` 19 and `validate.yml` 24, and a rebuild each time the resolver is needed.
 10. **Price, read before the apply (session 2).** Retail Prices API, Consumption rows: inbound endpoint 180.0, outbound
     endpoint 180.0, forwarding ruleset 2.5. The unit field reads only `1`; the DNS pricing page bills these per month,
-    prorated to hours, so about USD 0.50 per hour for the root (reasoned). Go decided by Ajay; the reason was supplied by
-    the mentor. Not compared with Cost Management.
+    prorated to hours, so about USD 0.50 per hour for the root (reasoned). Go decided by Ajay.
+    Not compared with Cost Management.
 11. **Static inbound IP 10.20.4.4.** An on-premises conditional forwarder holds a literal address, so the IP must survive a
     destroy and rebuild of the ephemeral root; Dynamic could change it (reasoned). The first four addresses of a subnet
-    are reserved, so .4 is the first usable one. Mentor's design choice, not objected to. Cost: hardcoded in the root.
+    are reserved, so .4 is the first usable one. Cost: hardcoded in the root.
 12. **Forwarder zone name for on-premises.** Forward the public name (`blob.core.windows.net`) to the inbound endpoint,
     not the `privatelink` name (read: Microsoft's DNS Private Resolver architecture guidance). The inbound endpoint then
     follows the public CNAME into the zone linked to the hub (reasoned). Not tested against a real on-premises server.
@@ -76,8 +76,8 @@ tested the whole chain with a throwaway private endpoint.
 15. **Delegation drift after a resolver destroy.** Destroying the endpoints removes the delegation from `snet-dns-in` and
     `snet-dns-out` (observed below), and the hub root then plans `2 to change`. Options: (A) a runbook step: apply
     `platform/foundation/hub` after every resolver destroy; (B) `ignore_changes` on the delegation in the hub; (C) move both
-    subnets into the resolver root. **Decision: (A)**, Ajay (the reason was supplied by the mentor: one owner per object
-    and Terraform keeps enforcing the delegation). Why not (B): it hides the drift and stops enforcement, and a resolver
+    subnets into the resolver root. **Decision: (A)**: one owner per object
+    and Terraform keeps enforcing the delegation. Why not (B): it hides the drift and stops enforcement, and a resolver
     build on an undelegated subnet was not tested. Why not (C): an ephemeral root would own subnets in the hub VNet,
     against the single-owner rule of ADR-0007. Cost: a manual step that can be forgotten; until it is done every PR plan
     comment shows the hub with changes, and the next CI apply of the hub corrects it.
