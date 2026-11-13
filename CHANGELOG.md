@@ -120,6 +120,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `platform/governance`: persistent root, applied by hand and listed in `SKIP_ROOTS` of `.github/workflows/apply.yml`. Management group `mg-platform` under the tenant root with the subscription associated, a custom policy definition for storage shared key access and the built-in allowed locations policy in the `platform-baseline` initiative, assigned at the group with Deny. ADR-0040; runbook `platform-governance`; README decisions, status and deploy tables updated.
 - ADR-0041: identity design on paper (bootstrap scripts kept with an exit condition, PIM and Conditional Access as design only, direct role assignment for the one human); no Azure change.
 - `platform/dns`: persistent root, in `APPLY_ROOTS` of `.github/workflows/apply.yml`. `rg-dns-shared`, the private DNS zones `privatelink.blob.core.windows.net`, `privatelink.vaultcore.azure.net` and `privatelink.azurecr.io`, and nine links to the hub and both spokes (registration off, `NxDomainRedirect`). ADR-0042; runbook `platform-dns`; README decisions, status and deploy rows updated.
+- `platform/dns-resolver`: ephemeral root, applied by hand and listed in `SKIP_ROOTS` of `.github/workflows/apply.yml`. `rg-dns-resolver-shared`, DNS Private Resolver `dnspr-hub-shared` on the hub VNet, inbound endpoint at static `10.20.4.4` in `snet-dns-in`, outbound endpoint in `snet-dns-out`, forwarding ruleset with the rule `onprem.internal.` to `10.30.0.53`, linked to the hub and dev VNets. Built, tested with a throwaway private endpoint and destroyed on 2026-11-12. ADR-0042 amended; runbook `platform-dns` gains build, test and destroy sections.
 
 ### Changed
 - `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
@@ -186,6 +187,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `bootstrap/github-oidc.sh`: the plan identity gets Reader at the management group `mg-platform` (`GROUP_SCOPE`), so the plan leg for `platform/governance` can read the group and its policy assignment. ADR-0013 and the runbooks `github-oidc` and `platform-governance` are updated. The script was run from the branch: `granted`, then `unchanged` on the second run.
 - `platform/foundation/hub`: subnets `snet-dns-in` (`10.20.4.0/28`) and `snet-dns-out` (`10.20.4.16/28`), delegated to `Microsoft.Network/dnsResolvers`, for the DNS Private Resolver endpoints built in the next session; outputs `dns_inbound_subnet_id` and `dns_outbound_subnet_id`. Applied by hand from the branch (`2 to add`), then `No changes`.
 - `.github/workflows/apply.yml`: `platform/dns` added to `APPLY_ROOTS` after the foundation roots. `plan.yml` root floor 17 to 18. `validate.yml` directory floor `MIN_DIRS` 22 to 23.
+- `.github/workflows/apply.yml`: `platform/dns-resolver` added to `SKIP_ROOTS`. `plan.yml` root floor 18 to 19. `validate.yml` directory floor `MIN_DIRS` 23 to 24. README lists the resolver among the hand-applied roots and adds its status row.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

@@ -56,12 +56,15 @@ jobs:
       # platform/firewall: ephemeral and billed by the hour, applied by hand and destroyed the same day (ADR-0039).
       # workloads/pipeline-demo/dev: applied by the ADO pipeline ado-terraform-deploy, not here (ADR-0026).
       # platform/governance: applied by hand, outside the apply identity scope (ADR-0040).
+      # platform/dns-resolver: ephemeral and billed by the hour (about USD 0.50/h),
+      # applied by hand and destroyed the same day (ADR-0042).
       SKIP_ROOTS: >-
         platform/runner
         platform/ado-agent
         platform/agent-identity
         platform/aks
         platform/firewall
+        platform/dns-resolver
         platform/governance
         workloads/storage-demo/dev
         workloads/vm-demo/dev
