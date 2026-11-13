@@ -126,6 +126,7 @@ This is the target design; section 7 shows what is built today.
 | [0040](docs/adr/0040-landing-zone-governance.md) | Landing zone governance: management group `mg-platform`, one custom and one built-in policy in an initiative assigned with Deny at the group, root applied by hand |
 | [0041](docs/adr/0041-identity-design.md) | Identity design on paper: bootstrap scripts kept with an exit condition, PIM and Conditional Access as design only, one human with a direct role assignment |
 | [0042](docs/adr/0042-private-endpoint-dns.md) | Private endpoint DNS: one copy of each privatelink zone in `platform/dns`, linked to the hub and both spokes with `NxDomainRedirect`, resolver subnets in the hub, simulated on-premises range 10.30.0.0/16; amended: ephemeral resolver root `platform/dns-resolver`, inbound endpoint 10.20.4.4, re-apply the hub after a resolver destroy |
+| [0043](docs/adr/0043-hybrid-connectivity.md) | Hybrid connectivity on paper: ExpressRoute as the primary path with an active-active site-to-site VPN as the backup, one `GatewaySubnet` in the hub, on-premises DNS forwards the public service names to the resolver inbound endpoint over either link; nothing built |
 
 ## 7. Status
 
@@ -153,4 +154,5 @@ This is the target design; section 7 shows what is built today.
 | Landing zone governance: `platform/governance` | ✅ applied 2026-11-11; persistent, applied by hand, in `SKIP_ROOTS`; management group `mg-platform` holds the subscription, the `platform-baseline` initiative is assigned with Deny, and a storage account with shared key access enabled was refused with `RequestDisallowedByPolicy`; moving the subscription out stopped enforcement (ADR-0040) |
 | Private endpoint DNS: `platform/dns` | ✅ applied 2026-11-12; persistent and in `APPLY_ROOTS` (the first CI apply has not run); zones for blob, Key Vault and ACR linked to the hub and both spokes (nine links, `NxDomainRedirect`); a throwaway private endpoint registered its record and resolved to its private IP from a dev VM and through the resolver's inbound endpoint (ADR-0042) |
 | DNS Private Resolver: `platform/dns-resolver` | ✅ built, tested and destroyed 2026-11-12; ephemeral, applied by hand, in `SKIP_ROOTS`; about USD 0.50 per hour; inbound endpoint 10.20.4.4, forwarding rule `onprem.internal` to a simulated on-premises server; the `NxDomainRedirect` fallback is not yet observed (ADR-0042) |
+| Hybrid connectivity (ExpressRoute and VPN) | 📝 design only, ADR-0043 (2026-11-12); no gateway, circuit or on-premises site exists, no price was read |
 | Private endpoints, Azure Policy | ⬜ planned |
