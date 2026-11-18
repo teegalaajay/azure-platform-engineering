@@ -201,6 +201,7 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `.github/workflows/plan.yml` and `.github/workflows/validate.yml`: discovery floors raised to 23 roots and 28 directories.
 - ADR-0007: amended with the two DR network ranges (ADR-0045).
 - `.github/workflows/plan.yml`: `PLAN_SKIP_ROOTS` in the `discover` step excludes named roots from the plan matrix and the comment; `platform/dr-replication` is excluded because its plan reads a source VM that exists only during an exercise (ADR-0014, ADR-0045).
+- README status table: the combined row for private endpoints and Azure Policy now says what is built (policy, DNS zones, resolver) and that the endpoints themselves are Week 10 work.
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory
