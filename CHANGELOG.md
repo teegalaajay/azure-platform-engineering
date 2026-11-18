@@ -125,6 +125,10 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `platform/management`: persistent root, in `APPLY_ROOTS` of `.github/workflows/apply.yml`. `rg-management-shared`, Log Analytics workspace `log-plat-shared-at01` (`PerGB2018`, 90 days retention, daily cap 0.2 GB, shared keys disabled), a `CanNotDelete` lock with `prevent_destroy`, action group `ag-platform-shared` and the log search alert `alert-law-daily-cap-reached` on the cap event. Recipients come from the sensitive variable `alert_contact_emails`, never committed.
 - `platform/governance`: policy assignment `diag-keyvault-to-law` (built-in `deployIfNotExists` definition for Key Vault diagnostics to the workspace, system-assigned identity, Monitoring Contributor at `mg-platform` and Log Analytics Contributor on the workspace). Existing vaults need a remediation task; the runbook has the command.
 - Architecture Decision Record 0044 (platform observability) and the runbook `platform-management`: workspace, enforcement by policy, the cap alert, Defender for Cloud read only, observations and unproven items.
+- `platform/backup`: Recovery Services vault `rsv-plat-shared-at01` (geo-redundant, Cross Region Restore, immutability `Unlocked`, `CanNotDelete` lock), policies `bkp-vm-standard` (daily) and `bkp-vm-regulated` (every 4 hours), backup diagnostics to the platform workspace. ADR-0045 and the `platform-backup` runbook.
+- `platform/dr`: Site Recovery vault `rsv-plat-dr-at01` in `centralus`, DR networks `10.40.0.0/16` and `10.41.0.0/16` with no peering, cache account, replication policy `asr-policy-1d`. Runbook `platform-dr`.
+- `platform/dr-replication`: ephemeral replication of one workload VM, with outputs `target_resource_group_name` and `replicated_vm_id`.
+- Workstation baseline: Azure CLI extensions `site-recovery` and `log-analytics` (both preview).
 
 ### Changed
 - `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
@@ -193,6 +197,9 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `.github/workflows/apply.yml`: `platform/dns` added to `APPLY_ROOTS` after the foundation roots. `plan.yml` root floor 17 to 18. `validate.yml` directory floor `MIN_DIRS` 22 to 23.
 - `.github/workflows/apply.yml`: `platform/dns-resolver` added to `SKIP_ROOTS`. `plan.yml` root floor 18 to 19. `validate.yml` directory floor `MIN_DIRS` 23 to 24. README lists the resolver among the hand-applied roots and adds its status row.
 - `.github/workflows/plan.yml` and `.github/workflows/apply.yml`: `TF_VAR_alert_contact_emails` is passed from the repository secret `BUDGET_CONTACT_EMAILS`, so `platform/management` plans and applies in CI (ADR-0044).
+- `.github/workflows/apply.yml`: `platform/backup` added to `APPLY_ROOTS`; `platform/dr` and `platform/dr-replication` added to `SKIP_ROOTS` (ADR-0045).
+- `.github/workflows/plan.yml` and `.github/workflows/validate.yml`: discovery floors raised to 23 roots and 28 directories.
+- ADR-0007: amended with the two DR network ranges (ADR-0045).
 
 ### Fixed
 - `modules/storage` v1.0.1: `tags` validation rejects null or blank values for the six mandatory

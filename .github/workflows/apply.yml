@@ -47,6 +47,7 @@ jobs:
         platform/dns
         platform/security
         platform/management
+        platform/backup
         platform/cost
         platform/registry
         workloads/storage-demo/prod
@@ -60,6 +61,9 @@ jobs:
       # platform/governance: applied by hand, outside the apply identity scope (ADR-0040).
       # platform/dns-resolver: ephemeral and billed by the hour (about USD 0.50/h),
       # applied by hand and destroyed the same day (ADR-0042).
+      # platform/dr: persistent, applied by hand; its two role assignments on the cache account are
+      # outside the apply identity ABAC condition (ADR-0013, reasoned, untested; ADR-0045).
+      # platform/dr-replication: ephemeral, billed while replication is enabled (ADR-0045).
       SKIP_ROOTS: >-
         platform/runner
         platform/ado-agent
@@ -67,6 +71,8 @@ jobs:
         platform/aks
         platform/firewall
         platform/dns-resolver
+        platform/dr
+        platform/dr-replication
         platform/governance
         workloads/storage-demo/dev
         workloads/vm-demo/dev

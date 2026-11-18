@@ -158,4 +158,12 @@ relied on.
   inference from that result; no flow logs were read. The subnet has no internet access
   (`default_outbound_access_enabled = false`); the cluster root chooses the outbound path. Prod is
   unchanged.
+- **Disaster recovery networks (2026-11-18, ADR-0045).** `platform/dr` adds two VNets in `centralus`:
+  `vnet-dr-dev` (`10.40.0.0/16`, one `snet-app` at `10.40.1.0/24`), where failed-over VMs land, and
+  `vnet-drtest-dev` (`10.41.0.0/16`, one `snet-app` at `10.41.1.0/24`), where test failovers land. Neither overlaps
+  `10.10`, `10.11`, `10.20` or the simulated on-premises range `10.30` (ADR-0042). Neither is peered to the hub or to any
+  other network (by the code: the root declares no peering), so a test VM has no route to production. Observed on
+  2026-11-18: the test VM from a test failover booted at `10.41.1.4`. Not provided: a route from the DR network to the hub
+  firewall, DNS for the DR network, and any peering for a real failover; each is needed before a real failover is relied on
+  and none was built or tested. No reason recorded for the two /16 ranges.
 - Cost: VNets, subnets, NSGs and peerings have no hourly charge; peering is billed per GB.

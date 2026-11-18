@@ -372,6 +372,7 @@ Phase 2 adds Ansible / Azure Pipelines extensions — install when needed, not b
 | Docker Engine (added 2026-11-05) | 29.9.3 (`docker-ce` and `docker-ce-cli` held); containerd 2.4.2, runc 1.5.2 | Docker apt repo, key `9DC8…CD88` (fingerprint comparison second-hand, see section 6b) |
 | kubectl (added 2026-11-10) | v1.36.6 (client; not held) | `dl.k8s.io` release binary, SHA-256 from the same server; signature verified once with cosign (section 6c) |
 | dig (added 2026-11-12) | package `bind9-dnsutils`; version not recorded when installed (`dpkg -s bind9-dnsutils` shows it) | Ubuntu apt (`sudo apt install bind9-dnsutils`); used for the DNS checks in `platform-dns`; `nslookup` comes from the same package |
+| Azure CLI extensions (added 2026-11-18) | `site-recovery` 1.0.0 and `log-analytics` 1.0.0b3, both preview | `az extension add --name <name>`; `az extension list -o table` shows the installed set. `site-recovery` is used to read replication state in `platform-dr` (it has no test failover command; that is a REST call); `log-analytics` for workspace queries (`platform-management`). Preview extensions can change without notice: check `--help` before relying on a flag |
 | pre-commit | 4.6.2 | pipx (Python 3.12.3) |
 | tflint | 0.64.0 | GitHub release, SLSA attestation on checksums.txt |
 | VS Code ext. | terraform 2.40.0 · yaml 1.24.0 · github-actions 0.32.3 | WSL side, auto-update |
