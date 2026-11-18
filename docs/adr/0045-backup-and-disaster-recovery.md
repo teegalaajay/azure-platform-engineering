@@ -52,6 +52,11 @@ the Retail Prices API and were not compared with Cost Management.
    on) are in `SKIP_ROOTS`. No reason recorded.
 10. **Backup and restore actions are done by hand** (the documented exception, the runbook lists each step). No reason
     recorded for choosing hand CLI over a pipeline.
+11. **`platform/dr-replication` is not planned in CI** (`PLAN_SKIP_ROOTS` in `plan.yml`, ADR-0014). The root reads its source VM,
+    NIC and disks with data sources, and the VM exists only during an exercise, so the plan fails whenever the VM is gone
+    (observed on the pull request that added the root: three `not found` errors, the leg failed in 24 seconds). Options
+    considered: leave the leg red; remove the data sources; exclude the root. The exclusion was chosen. No reason recorded.
+    Cost: a change to this root gets no CI plan; its evidence is the code diff and the plan run by hand.
 
 ## Recovery objectives (observed, 2026-11-18)
 
@@ -96,6 +101,7 @@ These are measurements of one idle VM, not targets. Targets per tier: not set; t
 - The first CI apply of `platform/backup`; the plan identity reading `platform/management` state in CI.
 - Application-level recovery (DNS, identity, integrations): an idle single VM does not prove it. No recovery plan was built.
 - A failover (not a test), failback, and the 180-day test cadence for Azure to Azure.
+- The CI plan of `platform/dr-replication` with the source VM present: not run, the root is excluded.
 
 ## Consequences
 

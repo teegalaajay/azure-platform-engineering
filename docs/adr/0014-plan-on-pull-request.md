@@ -64,6 +64,7 @@ A workflow, `.github/workflows/plan.yml`, runs on `pull_request` only. A first j
 - A plan can be stale if an apply writes state while it reads. It is advisory, not a gate on correctness.
 - The comment is public. Resource names and structure in the plan are visible to anyone who can see the repository; only GUID-shaped strings are masked.
 - A pull request from a fork gets no login and no secrets and fails closed. That behaviour follows from how GitHub treats forks and has not been exercised end to end here.
+- A root can be excluded from the plan with `PLAN_SKIP_ROOTS` in the `discover` step (added 2026-11-18, ADR-0045). The floor still counts every root with a backend, an excluded root gets no leg and no row in the comment, and a name that is not a root fails the job. Cost: a change to an excluded root gets no CI plan, so its evidence is the code diff and the plan run by hand. Used for `platform/dr-replication`, whose plan reads a source VM that exists only during an exercise.
 
 ## Deferred
 
