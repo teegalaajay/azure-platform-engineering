@@ -42,3 +42,11 @@ resource "azurerm_role_assignment" "vault_cache_blob_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_recovery_services_vault.this.identity[0].principal_id
 }
+
+# Enabling replication failed with error 28143 (vault has no permission on the cache account)
+# while the vault identity held only the blob data role above (ADR-0045).
+resource "azurerm_role_assignment" "vault_cache_contributor" {
+  scope                = azurerm_storage_account.cache.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_recovery_services_vault.this.identity[0].principal_id
+}

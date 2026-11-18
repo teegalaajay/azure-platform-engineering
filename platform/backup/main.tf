@@ -26,6 +26,13 @@ resource "azurerm_recovery_services_vault" "this" {
 
   sku = "Standard" # the only SKU for a Recovery Services vault
 
+  # Vault identity (ADR-0045). Restores into a storage account with shared key access disabled
+  # only work when the service authenticates as the vault: a restore to such an account failed
+  # without one (UserErrorSASNotSupportedOnStorageAccount, observed 2026-11-17).
+  identity {
+    type = "SystemAssigned"
+  }
+
   # Fixed once the first item is protected (validated in variables.tf).
   storage_mode_type = var.storage_mode_type
 

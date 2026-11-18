@@ -47,3 +47,8 @@ output "cache_account_id" {
   description = "ASR cache (staging) storage account ID, used as staging_storage_account_id on each replicated disk."
   value       = azurerm_storage_account.cache.id
 }
+
+output "target_fabric_id" {
+  description = "ID of the target-region Site Recovery fabric; the replicated VM resource requires it."
+  value       = azurerm_site_recovery_fabric.target.id
+}
