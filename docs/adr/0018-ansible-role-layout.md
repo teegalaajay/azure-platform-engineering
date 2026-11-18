@@ -35,7 +35,7 @@
 - Role variables share one namespace with the whole play. `site_title` has no `web_` prefix and could collide with another role's variable. Renaming it is a breaking change for any caller that passes `-e site_title=...`, so it is deferred.
 - Amended by ADR-0021 (2026-10-27): the variable prefix deferred above is done. `site_title` is now `web_site_title`, after ansible-lint `var-naming[no-role-prefix]` flagged it.
 - Anything placed in `ansible/templates/` is searched before the play fails, so a stale file there can satisfy a role's `template` task and hide a missing role file (reasoned from fact 3; the shadowing itself was not run).
-- The `license: MIT` field names a license the repository does not yet grant: there is no root `LICENSE` file. A follow-up PR adds it.
+- The `license: MIT` field names a license that the root `LICENSE` file now grants (MIT, copyright 2026 Ajay Reddy Teegala). The file was added after this decision, in its own pull request.
 - The entry point moved from `ansible/playbooks/web.yml` to `ansible/site.yml`. Commands that use the old path fail with a missing-file error (reasoned). The runbook is updated in the same PR.
 - A play in `ansible/playbooks/` cannot call the role without a configuration change (reasoned from fact 1).
 - Not tested: role parameters (`roles: - role: web, site_title: x`), `include_role` and `import_role`, tags set on the role in the play, list and dictionary defaults, `validate: nginx -t` on a full `nginx.conf` (still deferred from ADR-0017), `ansible.cfg` as an alternative.
