@@ -30,7 +30,10 @@ jobs:
           persist-credentials: false
       - id: find
         env:
-          MIN_DIRS: "20"
+          MIN_DIRS: "23"
+          # Roots that are not planned in CI. platform/dr-replication reads its source VM with data sources, and the
+          # VM exists only during a DR exercise, so its plan fails whenever the VM is gone (ADR-0045). Space separated.
+          PLAN_SKIP_ROOTS: "platform/dr-replication"
         run: |
           dirs=$(find . -name backend.tf -not -path '*/.terraform/*' -printf '%h\n' \
             | sed 's|^\./||' | sort | jq -R . | jq -sc .)
@@ -40,6 +43,13 @@ jobs:
             echo "::error::expected at least $MIN_DIRS roots with a backend, found $count"
             exit 1
           fi
+          for s in $PLAN_SKIP_ROOTS; do
+            jq -e --arg s "$s" 'index($s)' <<< "$dirs" > /dev/null \
+              || { echo "::error::PLAN_SKIP_ROOTS names $s, which is not a root with a backend"; exit 1; }
+          done
+          skip=$(printf '%s\n' $PLAN_SKIP_ROOTS | jq -R . | jq -sc .)
+          dirs=$(jq -c --argjson skip "$skip" 'map(select(. as $d | $skip | index($d) | not))' <<< "$dirs")
+          echo "planning $(jq length <<< "$dirs") roots, skipping $(jq length <<< "$skip")"
           echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
 
   plan:

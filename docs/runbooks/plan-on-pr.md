@@ -61,6 +61,7 @@ Expected: all checks green, exactly one comment, and `false` from the last comma
 | The CI plan shows changes to an input that the local plan does not | A repository secret has drifted from the operator's value | Section 2, then rerun the plan |
 | The `comment` job fails before posting | A GUID-shaped string survived masking | Do not bypass the gate. Find the source in the plan output; if a comment was already posted, delete it |
 | A pull request from a fork shows red checks | Forks get no secrets and no OIDC token, so the plan fails closed | Expected. Not yet exercised end to end |
+| A root has no row in the plan comment | It is named in `PLAN_SKIP_ROOTS` in the `discover` step of `plan.yml` | Expected for `platform/dr-replication` (ADR-0045). Run its plan by hand while the source VM exists |
 
 ## 6. Teardown
 

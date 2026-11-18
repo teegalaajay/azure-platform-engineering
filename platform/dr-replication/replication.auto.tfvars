@@ -1,0 +1,9 @@
+location                      = "centralus"
+environment                   = "dev"
+data_classification           = "internal" # dev holds no regulated data
+source_vm_name                = "vm-ansible-target-dev"
+source_vm_resource_group_name = "rg-ansible-target-dev"
+target_resource_group_name    = "rg-dr-workload-dev"
+target_zone                   = "2" # adopted 2026-11-18, no reason recorded
+target_subnet_name            = "snet-app"
+test_subnet_name              = "snet-app"

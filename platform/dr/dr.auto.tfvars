@@ -1,0 +1,9 @@
+location                   = "centralus"
+vault_name                 = "rsv-plat-dr-at01"
+data_classification        = "gxp-regulated"  # the vault replicates regulated workloads
+dr_address_space           = ["10.40.0.0/16"] # A.1: failover network, no peering
+drtest_address_space       = ["10.41.0.0/16"] # A.1: isolated test-failover network, no peering
+cache_account_name         = "stdrcacheat01"
+cache_location             = "eastus2" # the source region, not the DR region
+source_resource_group_name = "rg-network-dev"
+source_vnet_name           = "vnet-spoke-dev"
