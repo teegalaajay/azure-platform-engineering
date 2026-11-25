@@ -32,3 +32,8 @@ output "dns_outbound_subnet_id" {
   description = "snet-dns-out ID (DNS Private Resolver outbound endpoint, ADR-0042)"
   value       = azurerm_subnet.dns_outbound.id
 }
+
+output "pe_subnet_id" {
+  description = "snet-pe ID (private endpoints for shared platform services, ADR-0007 amendment)"
+  value       = module.network.subnet_ids["pe"]
+}

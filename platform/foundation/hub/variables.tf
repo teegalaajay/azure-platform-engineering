@@ -37,3 +37,8 @@ variable "dns_outbound_subnet_prefix" {
   description = "snet-dns-out CIDR (DNS Private Resolver outbound endpoint, ADR-0042)"
   type        = string
 }
+
+variable "pe_subnet_prefix" {
+  description = "snet-pe CIDR (private endpoints for shared platform services, ADR-0007 amendment)"
+  type        = string
+}
