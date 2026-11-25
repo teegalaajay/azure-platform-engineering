@@ -44,11 +44,11 @@ Options 2, 4 and 7.
 
 | Network | Resource group | CIDR | Subnets |
 |---|---|---|---|
-| `vnet-hub-shared` | `rg-network-shared` | `10.20.0.0/16` | `snet-mgmt` `10.20.3.0/26` (59 usable); `AzureFirewallSubnet` `10.20.0.0/26` (added 2026-11-11, ADR-0039). Bastion gets its own subnet when it is built. |
+| `vnet-hub-shared` | `rg-network-shared` | `10.20.0.0/16` | `snet-mgmt` `10.20.3.0/26` (59 usable); `AzureFirewallSubnet` `10.20.0.0/26` (added 2026-11-11, ADR-0039); `snet-dns-in` `10.20.4.0/28` and `snet-dns-out` `10.20.4.16/28` (resolver endpoints, added 2026-11-12, ADR-0042; this table omitted them until 2026-11-25); `snet-pe` `10.20.4.32/27` (private endpoints for shared platform services, added 2026-11-25, ADR-0046). Bastion gets its own subnet when it is built. |
 | `vnet-spoke-dev` | `rg-network-dev` | `10.10.0.0/16` | `snet-app` `10.10.1.0/24`, `snet-data` `10.10.2.0/24` (251 usable each), `snet-aks-nodes` `10.10.8.0/22` (2026-11-10) |
 | `vnet-spoke-prod` | `rg-network-prod` | `10.11.0.0/16` | `snet-app` `10.11.1.0/24`, `snet-data` `10.11.2.0/24` |
 
-Reserved in every spoke, not created yet: `snet-pe` `.4.0/24` (private endpoints, Weeks 9-10).
+Reserved in every spoke, not created yet: `snet-pe` `.4.0/24` (private endpoints that belong to one environment; endpoints for shared platform services live in the hub `snet-pe`, ADR-0046).
 `snet-aks-nodes` `.8.0/22` (AKS with Azure CNI Overlay, Week 8; pods use the overlay range) was
 created in dev on 2026-11-10; prod keeps it reserved.
 `.0.0/24` and `.5.0`-`.7.255` stay free for growth. A simulated on-premises range for the Week 9
@@ -92,7 +92,7 @@ Never committed: the repo is public, and plan output is posted to public PR comm
 for private access to PaaS services. Service endpoints are scoped to a service type (any account
 of that service), not to one resource, and are not reachable from peered or on-premises
 networks; private endpoints fix both but need private DNS. Target: private endpoints in
-`snet-pe` in Weeks 9-10, with public network access disabled.
+`snet-pe`. Public network access stays Enabled where a client without a private path still needs it (ADR-0046).
 
 **Change rule:** NSG names never change; rules change in place. Replacing an NSG runs
 destroy-then-create by default, leaving the subnet unfiltered between removing the old
@@ -167,3 +167,20 @@ relied on.
   firewall, DNS for the DR network, and any peering for a real failover; each is needed before a real failover is relied on
   and none was built or tested. No reason recorded for the two /16 ranges.
 - Cost: VNets, subnets, NSGs and peerings have no hourly charge; peering is billed per GB.
+
+- **Hub `snet-pe` for shared private endpoints (2026-11-25).** `snet-pe` (`10.20.4.32/27`) is built in
+  `platform/foundation/hub` with its own NSG, no service endpoints and no inbound rules. Endpoints for shared
+  platform services (the platform Key Vault and the state account) live in the hub and not in a spoke, because
+  peering is not transitive: an endpoint in dev would not be reachable from prod (reasoned; the dev case is
+  observed below, the prod case is not tested). Observed: a VM in dev resolved the vault and the state blob
+  names to `10.20.4.36` and `10.20.4.37` and connected to both over the dev-to-hub peering (the services
+  answered `404` and `400`, remote addresses private). Read: while a subnet's private endpoint network
+  policies stay `Disabled`, its NSG does not filter traffic to the endpoints; the provider default is
+  `Disabled` and the value was read back as `Disabled` on `snet-mgmt`, and `snet-pe` is left at the module
+  default (not read back). The `deny-vnet-inbound` rule therefore protects nothing on this subnet, and
+  protection for the endpoints comes from Entra authentication and RBAC on the target resources. Rejected:
+  enabling network policies on `snet-pe` (it adds NSG and route table behaviour to the endpoint path that
+  nothing needs yet; cost: no network-level filtering of endpoint traffic). Rejected: one `snet-pe` per spoke
+  for shared services (one endpoint per consumer environment per service, and the zone links already cover
+  every VNet). Cost of this decision: the subnet and its NSG are free per hour (reasoned); the endpoints bill
+  per hour and per GB processed (ADR-0046).
