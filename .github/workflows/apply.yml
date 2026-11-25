@@ -46,6 +46,7 @@ jobs:
         platform/foundation/prod
         platform/dns
         platform/security
+        platform/private-endpoints
         platform/management
         platform/backup
         platform/cost
