@@ -46,7 +46,8 @@ cost that this record states.
 5. **Pin the fixed package in the Dockerfile.** The first scan failed on `zlib1g` in the base image; the final stage
    now upgrades it to the fixed version (a block placed after `FROM python:3.12-slim`, before the user is created).
    The rule was not weakened and no ignore entry was added. Cost: the pin is a debt; remove it when the base image
-   ships the fixed package, which a scan without the pin will show.
+   ships the fixed package, which a scan without the pin will show. On 2026-11-25 the scan failed on `libzstd1` and
+   the same block gained a second pin, by the same method.
 6. **The job is in `validate-gate`** (`needs` lists it and any result other than `success` blocks). Cost: a bad
    database day blocks every merge until the image is fixed.
 
@@ -62,6 +63,11 @@ cost that this record states.
   job exists.
 - The base tag `python:3.12-slim` resolved to different digests between two pulls, and a transitive Python
   dependency moved (`click` 8.5.0 to 8.5.1) between builds.
+- A second finding on 2026-11-25, on a pull request that changed no image file: the scan reported one HIGH in the
+  base layer (`libzstd1` `1.5.7+dfsg-1`, CVE-2026-124851, fixed in `1.5.7+dfsg-1+deb13u1`, Debian 13.8; the Python
+  packages scanned clean), the job exited 1 and `validate-gate` failed with `image=failure`. A local build with the
+  second pin installed `1.5.7+dfsg-1+deb13u1` (read back with `dpkg -s`). This is the base-tag drift listed under
+  Unproven, observed once: an unchanged Dockerfile turned red because the base or the vulnerability database moved.
 
 ## Reasoned
 
@@ -79,7 +85,8 @@ cost that this record states.
 
 - The Trivy database download failing: whether the job turns red (it should, by exit code) was not tested.
 - The floating base tag and the unpinned Python dependencies: builds are not reproducible, and the scan result can
-  differ between two runs of the same commit. A digest pin and a constraints file are not done.
+  differ between two runs of the same commit. A digest pin and a constraints file are not done. The drift happened
+  once on 2026-11-25 (see Observed); whether the base or the vulnerability database moved was not determined.
 - A scan of the image in the registry (registry-side scanning is planned for Week 9).
-- One finding's title looked odd (CVE-2026-76844); it was not investigated.
+- Two finding identifiers looked odd (CVE-2026-76844, CVE-2026-124851); neither was investigated.
 - hadolint's authenticity beyond the release page.
