@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - id: find
         env:
-          MIN_DIRS: "23"
+          MIN_DIRS: "24"
           # Roots that are not planned in CI. platform/dr-replication reads its source VM with data sources, and the
           # VM exists only during a DR exercise, so its plan fails whenever the VM is gone (ADR-0045). Space separated.
           PLAN_SKIP_ROOTS: "platform/dr-replication"

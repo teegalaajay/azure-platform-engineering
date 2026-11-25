@@ -10,7 +10,7 @@
 | Pipeline definition | Azure DevOps project `azure-platform-engineering`, name `ado-terraform-validate` | one definition for `pipelines/ado-terraform-validate.yml`; the YAML stays in GitHub |
 | Image | `vmImage: ubuntu-24.04` in the YAML | Microsoft-hosted agent; the pin fixes the OS release, not the preinstalled tools |
 | Terraform | variables `terraformVersion` and `terraformSha256` in the YAML | the only place this pipeline names a version; downloaded into `$(Agent.TempDirectory)/terraform` and compared with the hash |
-| Scope | the last step of the YAML | `fmt -check`, `init -backend=false`, `validate` in every directory that holds a `versions.tf`, floor 13 |
+| Scope | the last step of the YAML | `fmt -check`, `init -backend=false`, `validate` in every directory that holds a `versions.tf`, floor in the pipeline file (`MIN_DIRS`, 29 on 2026-11-25) |
 | Triggers | `trigger` on `main`, `pr` to `main`, same path filter | `modules/**`, `platform/**`, `workloads/**`, `.tflint.hcl`, the pipeline file, `pipelines/templates/**` |
 | Identity | none | no service connection and no Azure sign-in; the GitHub App reads the YAML and the repository |
 | Status | informational | the required gate stays `validate-gate` on GitHub |
@@ -60,7 +60,7 @@ On the Pull request or from the branch: the diagnostic step prints `x86_64` and 
 | A directory's group shows only a formatting diff and `checks failed in <dir>`, the summary ends `failed: <dir>` (observed) | `terraform fmt -check` failed; `init` and `validate` do not run in that directory because the checks are chained with `&&` | run `terraform fmt` in that directory, commit, rerun; a validation error in the same directory shows only after that |
 | The loop visits all 13 directories even after one fails (observed) | failures are collected and the job fails at the end | read the `failed:` line and the red error lines in the run summary |
 | Diagnostic prints `no terraform on PATH before our install` (observed, informational) | the image carries no Terraform | none; the pipeline installs its own |
-| `expected at least 13 Terraform directories` (expected, not yet observed) | discovery found fewer than the floor: a directory was removed or `find` broke | check `find . -name versions.tf`; change the floor in the same pull request that adds or removes a root |
+| `expected at least N Terraform directories` (expected, not yet observed) | discovery found fewer than the floor: a directory was removed or `find` broke | check `find . -name versions.tf`; change the floor in the same pull request that adds or removes a root |
 | Wizard opens "Authorize Azure Pipelines (OAuth)" although a GitHub connection exists (observed) | the wizard started from the portal asks for OAuth for each new pipeline | cancel; use the app route in section 2 |
 | A pull request starts no run and GitHub lists `ado-terraform-validate` as skipped (observed, pull request 31) | no changed file matches the path filter | compare the changed files with the filter; docs, `ansible/`, `bootstrap/` and `.github/` are outside it on purpose |
 | Run fails because the image cannot be found (expected, not yet observed) | Microsoft retired the pinned image | section 4 |

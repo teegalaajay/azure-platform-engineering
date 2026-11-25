@@ -129,6 +129,8 @@ Modules are versioned separately with `modules/<name>/vX.Y.Z` tags.
 - `platform/dr`: Site Recovery vault `rsv-plat-dr-at01` in `centralus`, DR networks `10.40.0.0/16` and `10.41.0.0/16` with no peering, cache account, replication policy `asr-policy-1d`. Runbook `platform-dr`.
 - `platform/dr-replication`: ephemeral replication of one workload VM, with outputs `target_resource_group_name` and `replicated_vm_id`.
 - Workstation baseline: Azure CLI extensions `site-recovery` and `log-analytics` (both preview).
+- `platform/private-endpoints`: persistent root, in `APPLY_ROOTS` of `.github/workflows/apply.yml`. `rg-private-endpoints-shared` with a private endpoint for the platform Key Vault (`vault`) and one for the state account blob service (`blob`) in the hub `snet-pe`, DNS records written by zone groups into the zones of `platform/dns`; outputs `resource_group_name`, `private_endpoint_names` and `private_ip_addresses`. The plan matrix floor `MIN_DIRS` is now 24, the validate floor 29 in `validate.yml` and in `pipelines/ado-terraform-validate.yml` (the runbook `ado-terraform-validate` no longer states a stale count).
+- Architecture Decision Record 0046 (private endpoints for shared services) and the runbook `platform-private-endpoints`: hub placement, no registry endpoint until Premium, public access on the state account kept as a recorded exception, observed resolution from a dev VM, and the unproven items.
 
 ### Changed
 - `.github/workflows/plan.yml`: the root-count floor `MIN_DIRS` is 14 (the registry root is the fourteenth).
