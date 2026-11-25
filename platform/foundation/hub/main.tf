@@ -33,6 +33,11 @@ module "network" {
       service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
       # no inbound_rules: the runner only connects outbound (ADR-0007)
     }
+    pe = {
+      address_prefix = var.pe_subnet_prefix
+      # no service_endpoints, no inbound_rules: endpoints are reached by private IP, and the module's NSG does
+      # not filter private endpoint traffic while network policies stay Disabled (ADR-0007 amendment)
+    }
   }
 }
 
